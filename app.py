@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
+from datetime import date, datetime, timedelta
 
 from config import APP_TITLE, WINDOW_GEOMETRY, MIN_WINDOW_SIZE, COLORS, get_apple_like_font
 from database import Database
@@ -23,6 +24,10 @@ class SentinelAppleUI:
         self.form_entries = {}
         self.current_tree = None
         self.selected_id = None
+        
+        self.sort_column = None
+        self.sort_ascending = False
+        self.search_mode = None
 
         self.colors = COLORS
         self.font = get_apple_like_font()
@@ -94,9 +99,10 @@ class SentinelAppleUI:
             bd=0,
             relief="flat",
             font=(self.font, 10, "bold"),
-            padx=20,
-            pady=10,
-            cursor="hand2"
+            padx=24,
+            pady=12,
+            cursor="hand2",
+            highlightthickness=0
         )
 
     def secondary_button(self, parent, text, command=None):
@@ -111,9 +117,10 @@ class SentinelAppleUI:
             bd=0,
             relief="flat",
             font=(self.font, 10, "bold"),
-            padx=20,
-            pady=10,
-            cursor="hand2"
+            padx=24,
+            pady=12,
+            cursor="hand2",
+            highlightthickness=0
         )
 
     def danger_button(self, parent, text, command=None):
@@ -128,9 +135,10 @@ class SentinelAppleUI:
             bd=0,
             relief="flat",
             font=(self.font, 10, "bold"),
-            padx=20,
-            pady=10,
-            cursor="hand2"
+            padx=24,
+            pady=12,
+            cursor="hand2",
+            highlightthickness=0
         )
 
     def show_login(self):
@@ -460,8 +468,8 @@ class SentinelAppleUI:
             self.topbar,
             bg="white",
             parent_bg=self.colors["app_bg"],
-            radius=20,
-            padding=10
+            radius=24,
+            padding=12
         )
         chip.pack(side="right", padx=30)
 
@@ -529,14 +537,14 @@ class SentinelAppleUI:
                     ("Member Name", "member_name", "text"),
                     ("Residence Address", "residence_address", "text"),
                     ("Contact Number", "contact_number", "text"),
-                    ("Membership Type", "membership_type", "text"),
-                    ("Membership Status", "membership_status", "text"),
-                    ("Medical Clearance", "medical_clearance", "text"),
-                    ("Health Issues", "health_issues", "text"),
-                    ("Membership Registered", "membership_registered", "text"),
-                    ("Membership Duration", "membership_duration", "text"),
-                    ("Membership Expiry", "membership_expiry", "text"),
-                    ("Months Remaining", "months_remaining", "int"),
+                    ("Membership Type", "membership_type", "dropdown"),
+                    ("Medical Clearance", "medical_clearance", "dropdown"),
+                    ("Health Issues", "health_issues", "multiline"),
+                    ("Membership Registered", "membership_registered", "readonly"),
+                    ("Membership Duration", "membership_duration", "dropdown"),
+                    ("Membership Expiry", "membership_expiry", "readonly"),
+                    ("Membership Status", "membership_status", "readonly"),
+                    ("Days Remaining", "months_remaining", "readonly"),
                 ],
             },
             "Trainers": {
@@ -877,8 +885,8 @@ class SentinelAppleUI:
             self.content,
             bg="white",
             parent_bg=self.colors["app_bg"],
-            radius=22,
-            padding=18
+            radius=28,
+            padding=20
         )
         search_card.pack(fill="x", padx=30, pady=(0, 25))
 
@@ -904,8 +912,8 @@ class SentinelAppleUI:
             self.content,
             bg="white",
             parent_bg=self.colors["app_bg"],
-            radius=24,
-            padding=24
+            radius=28,
+            padding=26
         )
         hero.pack(fill="x", padx=30, pady=(5, 22))
 
@@ -936,8 +944,8 @@ class SentinelAppleUI:
                 grid,
                 bg="white",
                 parent_bg=self.colors["app_bg"],
-                radius=22,
-                padding=18
+                radius=28,
+                padding=20
             )
             card.grid(
                 row=i // columns,
@@ -1010,13 +1018,16 @@ class SentinelAppleUI:
     def show_records_page(self, page_name, search_text=""):
         self.clear_content()
         self.current_config = self.get_page_config(page_name)
+        self.sort_column = self.current_config["display_columns"][0]
+        self.sort_ascending = False
+        self.search_mode = None
 
         toolbar = RoundedFrame(
             self.content,
             bg="white",
             parent_bg=self.colors["app_bg"],
-            radius=22,
-            padding=18
+            radius=28,
+            padding=16
         )
         toolbar.pack(fill="x", padx=30, pady=(5, 18))
 
@@ -1031,15 +1042,27 @@ class SentinelAppleUI:
 
         self.apple_button(
             toolbar.inner,
-            "Search",
-            command=self.search_records
-        ).pack(side="left", padx=(12, 8))
+            "Search ID",
+            command=self.search_by_id
+        ).pack(side="left", padx=(12, 6))
+
+        self.apple_button(
+            toolbar.inner,
+            "Search Name",
+            command=self.search_by_name
+        ).pack(side="left", padx=6)
 
         self.secondary_button(
             toolbar.inner,
             "Clear",
             command=self.clear_search
-        ).pack(side="left")
+        ).pack(side="left", padx=(6, 0))
+
+        self.apple_button(
+            toolbar.inner,
+            "Add",
+            command=lambda: self.open_record_window(page_name, is_new=True)
+        ).pack(side="right")
 
         self.table_container = tk.Frame(
             self.content,
@@ -1047,8 +1070,7 @@ class SentinelAppleUI:
         )
         self.table_container.pack(fill="x")
 
-        self.form_panel(page_name, self.current_config["fields"])
-        self.load_table(search_text)
+        self.load_table("")
 
     def go_to_page_with_search(self, page, search_text):
         self.current_page = page
@@ -1056,11 +1078,35 @@ class SentinelAppleUI:
         self.build_topbar()
         self.show_records_page(page, search_text)
 
-    def search_records(self):
-        self.load_table(self.search_entry.get().strip())
+    def search_by_id(self):
+        search_text = self.search_entry.get().strip()
+        if not search_text:
+            messagebox.showwarning("Empty Search", "Please enter an ID to search.")
+            return
+        
+        config = self.current_config
+        id_column = config["display_columns"][0]
+        self.search_mode = "id"
+        self.load_table_filtered(search_text, [id_column])
+
+    def search_by_name(self):
+        search_text = self.search_entry.get().strip()
+        if not search_text:
+            messagebox.showwarning("Empty Search", "Please enter a name to search.")
+            return
+        
+        config = self.current_config
+        name_columns = [col for col in config["search_columns"] if "name" in col.lower() or "member_name" in col or "trainer_name" in col or "class_name" in col]
+        if not name_columns:
+            messagebox.showwarning("Search Error", "No name field available for this record type.")
+            return
+        
+        self.search_mode = "name"
+        self.load_table_filtered(search_text, name_columns)
 
     def clear_search(self):
         self.search_entry.delete(0, tk.END)
+        self.search_mode = None
         self.load_table("")
 
     def load_table(self, search_text=""):
@@ -1076,6 +1122,11 @@ class SentinelAppleUI:
             config["search_columns"]
         )
 
+        if self.current_page == "Members":
+            rows = [self.normalize_member_row(row) for row in rows]
+
+        rows = self.sort_rows(rows, config)
+
         self.table_card(
             config["headings"],
             rows,
@@ -1083,6 +1134,53 @@ class SentinelAppleUI:
             parent=self.table_container,
             bind_select=True
         )
+
+    def load_table_filtered(self, search_text, search_columns):
+        for widget in self.table_container.winfo_children():
+            widget.destroy()
+
+        config = self.current_config
+
+        rows = self.db.fetch_records(
+            config["table"],
+            config["display_columns"],
+            search_text,
+            search_columns
+        )
+
+        if self.current_page == "Members":
+            rows = [self.normalize_member_row(row) for row in rows]
+
+        rows = self.sort_rows(rows, config)
+
+        self.table_card(
+            config["headings"],
+            rows,
+            height=8,
+            parent=self.table_container,
+            bind_select=True
+        )
+
+    def sort_rows(self, rows, config):
+        if not rows or self.sort_column is None:
+            return rows
+
+        col_index = None
+        try:
+            col_index = config["display_columns"].index(self.sort_column)
+        except ValueError:
+            return rows
+
+        def sort_key(row):
+            val = row[col_index]
+            if val is None:
+                return (1, "")
+            try:
+                return (0, float(val))
+            except (TypeError, ValueError):
+                return (0, str(val).lower())
+
+        return sorted(rows, key=sort_key, reverse=not self.sort_ascending)
 
     def table_card(self, headings, data, height=8, parent=None, bind_select=False):
         if parent is None:
@@ -1092,8 +1190,8 @@ class SentinelAppleUI:
             parent,
             bg="white",
             parent_bg=self.colors["app_bg"],
-            radius=22,
-            padding=14
+            radius=28,
+            padding=16
         )
         card.pack(fill="x", padx=30, pady=(0, 20))
 
@@ -1105,7 +1203,7 @@ class SentinelAppleUI:
         )
 
         for col in headings:
-            tree.heading(col, text=col)
+            tree.heading(col, text=col, command=lambda c=col: self.on_heading_click(c, headings))
             tree.column(col, width=135, anchor="center")
 
         for row in data:
@@ -1124,92 +1222,315 @@ class SentinelAppleUI:
         if bind_select:
             self.current_tree = tree
             tree.bind("<<TreeviewSelect>>", self.on_row_selected)
+            tree.bind("<Double-1>", self.on_row_double_click)
 
-    def form_panel(self, page_name, fields):
-        card = RoundedFrame(
-            self.content,
-            bg="white",
-            parent_bg=self.colors["app_bg"],
-            radius=22,
-            padding=22
-        )
-        card.pack(fill="x", padx=30, pady=(0, 35))
+    def on_heading_click(self, col, headings):
+        config = self.current_config
+        try:
+            heading_index = list(headings).index(col)
+            new_sort_column = config["display_columns"][heading_index]
+            
+            if new_sort_column == self.sort_column:
+                self.sort_ascending = not self.sort_ascending
+            else:
+                self.sort_column = new_sort_column
+                self.sort_ascending = False
+        except (ValueError, IndexError):
+            return
 
-        tk.Label(
-            card.inner,
-            text=f"{page_name} Details",
-            bg="white",
+        self.load_table("")
+
+    def on_row_double_click(self, event):
+        tree = event.widget
+        item = tree.identify_row(event.y)
+        if not item:
+            return
+
+        values = tree.item(item, "values")
+        if not values:
+            return
+
+        self.open_record_window(self.current_page, record_id=values[0])
+
+    def normalize_member_row(self, row):
+        try:
+            expiry_str = row[5]
+            expiry_date = datetime.strptime(expiry_str, "%Y-%m-%d").date()
+            status = "Active" if date.today() <= expiry_date else "Expired"
+            return (row[0], row[1], row[2], row[3], status, row[5])
+        except Exception:
+            return row
+
+    def open_record_window(self, page_name, record_id=None, is_new=False):
+        config = self.get_page_config(page_name)
+        record = None
+
+        if not is_new and record_id is not None:
+            record = self.db.fetch_one(
+                config["table"],
+                config["pk"],
+                record_id,
+                [field[1] for field in config["fields"]]
+            )
+
+        record_window = tk.Toplevel(self.root)
+        record_window.title(f"{'Add' if is_new else 'Details'} - {page_name}")
+        record_window.geometry("900x720")
+        record_window.configure(bg=self.colors["app_bg"])
+        record_window.transient(self.root)
+        record_window.grab_set()
+
+        title_label = tk.Label(
+            record_window,
+            text=f"{'Add New' if is_new else 'View'} {page_name}",
+            bg=self.colors["app_bg"],
             fg=self.colors["text"],
-            font=(self.font, 16, "bold")
-        ).pack(anchor="w", pady=(0, 14))
+            font=(self.font, 20, "bold")
+        )
+        title_label.pack(anchor="w", padx=24, pady=(24, 0))
 
-        form = tk.Frame(card.inner, bg="white")
-        form.pack(fill="x")
+        form_frame = tk.Frame(record_window, bg=self.colors["app_bg"])
+        form_frame.pack(fill="both", expand=True, padx=24, pady=16)
 
-        self.form_entries = {}
+        self.record_window_widgets = {}
+        self.record_window_fields = {}
+        self.record_window_editing = is_new
+        self.record_window_page = page_name
+        self.record_window_id = record_id
+        self.record_window_save_button = None
+        self.record_window_toggle_button = None
 
-        for i, (label_text, column_name, data_type) in enumerate(fields):
-            row = i // 3
-            col = i % 3
+        for i, (label_text, column_name, data_type) in enumerate(config["fields"]):
+            row = i // 2
+            col = i % 2
 
-            field_frame = tk.Frame(form, bg="white")
-            field_frame.grid(row=row, column=col, padx=8, pady=8, sticky="ew")
+            field_frame = tk.Frame(form_frame, bg="white")
+            field_frame.grid(row=row, column=col, padx=8, pady=8, sticky="nsew")
 
             tk.Label(
                 field_frame,
                 text=label_text,
                 bg="white",
                 fg=self.colors["muted"],
-                font=(self.font, 9, "bold")
-            ).pack(anchor="w", pady=(0, 5))
+                font=(self.font, 10, "bold")
+            ).pack(anchor="w", pady=(0, 6))
 
-            entry = tk.Entry(
-                field_frame,
-                bg=self.colors["input"],
-                bd=0,
-                font=(self.font, 10)
+            raw_value = ""
+            if record is not None:
+                raw_value = "" if record[i] is None else str(record[i])
+            elif is_new:
+                if column_name == "membership_registered":
+                    raw_value = date.today().isoformat()
+                elif column_name == "membership_duration":
+                    raw_value = "1 Month"
+                elif column_name == "membership_status":
+                    raw_value = "Active"
+                elif column_name == "months_remaining":
+                    raw_value = "0"
+
+            widget = None
+            if data_type == "dropdown":
+                widget = ttk.Combobox(
+                    field_frame,
+                    values=self.get_dropdown_options(page_name, column_name),
+                    state="readonly",
+                    font=(self.font, 10)
+                )
+                widget.set(raw_value or widget["values"][0] if widget["values"] else "")
+                widget.pack(fill="x", ipady=8)
+            elif data_type == "multiline":
+                widget = tk.Text(
+                    field_frame,
+                    bg=self.colors["input"],
+                    bd=0,
+                    font=(self.font, 10),
+                    height=4,
+                    wrap="word"
+                )
+                widget.insert("1.0", raw_value)
+                widget.pack(fill="both", expand=True)
+            else:
+                widget = tk.Entry(
+                    field_frame,
+                    bg=self.colors["input"],
+                    bd=0,
+                    font=(self.font, 10)
+                )
+                widget.insert(0, raw_value)
+                widget.pack(fill="x", ipady=8)
+
+            if not is_new:
+                if isinstance(widget, tk.Text):
+                    widget.config(state="disabled")
+                elif isinstance(widget, ttk.Combobox):
+                    widget.config(state="disabled")
+                else:
+                    widget.config(state="disabled")
+
+            self.record_window_widgets[column_name] = widget
+            self.record_window_fields[column_name] = data_type
+
+            if data_type != "readonly":
+                if isinstance(widget, tk.Entry):
+                    widget.bind("<KeyRelease>", lambda event: self.update_record_window_save_state())
+                elif isinstance(widget, ttk.Combobox):
+                    if column_name == "membership_duration":
+                        widget.bind(
+                            "<<ComboboxSelected>>",
+                            lambda event: (self.update_member_computed_fields(), self.update_record_window_save_state())
+                        )
+                    else:
+                        widget.bind("<<ComboboxSelected>>", lambda event: self.update_record_window_save_state())
+                elif isinstance(widget, tk.Text):
+                    widget.bind("<<Modified>>", self._on_text_modified)
+
+        if page_name == "Members":
+            self.update_member_computed_fields()
+
+        form_frame.grid_columnconfigure(0, weight=1)
+        form_frame.grid_columnconfigure(1, weight=1)
+
+        action_frame = tk.Frame(record_window, bg=self.colors["app_bg"])
+        action_frame.pack(fill="x", padx=24, pady=(0, 20))
+
+        if is_new:
+            self.record_window_save_button = self.apple_button(
+                action_frame,
+                "Save",
+                command=lambda: self.save_window_record(record_window, is_new=True)
             )
-            entry.pack(fill="x", ipady=8)
+            self.record_window_save_button.pack(side="right")
+            self.update_record_window_save_state()
+        else:
+            self.record_window_toggle_button = self.apple_button(
+                action_frame,
+                "Update",
+                command=lambda: self.toggle_record_editing(record_window)
+            )
+            self.record_window_toggle_button.pack(side="right", padx=(0, 8))
 
-            self.form_entries[column_name] = entry
+            self.danger_button(
+                action_frame,
+                "Delete",
+                command=lambda: self.delete_record_window(record_window)
+            ).pack(side="right")
 
-        for i in range(3):
-            form.grid_columnconfigure(i, weight=1)
+            self.update_record_window_save_state()
 
-        button_row = tk.Frame(card.inner, bg="white")
-        button_row.pack(fill="x", pady=(18, 0))
+    def _on_text_modified(self, event):
+        widget = event.widget
+        widget.edit_modified(False)
+        self.update_record_window_save_state()
 
-        self.apple_button(
-            button_row,
-            "Add",
-            command=self.add_record
-        ).pack(side="left", padx=(0, 8))
+    def get_dropdown_options(self, page_name, column_name):
+        if page_name == "Members":
+            if column_name == "membership_type":
+                return ["Monthly", "Student", "Annual"]
+            if column_name == "membership_duration":
+                return ["1 Month", "3 Months", "6 Months", "12 Months"]
+            if column_name == "medical_clearance":
+                return ["Yes", "No"]
+        return []
 
-        self.secondary_button(
-            button_row,
-            "Update",
-            command=self.update_record
-        ).pack(side="left", padx=8)
+    def update_member_computed_fields(self):
+        if self.record_window_page != "Members":
+            return
 
-        self.danger_button(
-            button_row,
-            "Delete",
-            command=self.delete_record
-        ).pack(side="left", padx=8)
+        duration_widget = self.record_window_widgets.get("membership_duration")
+        registered_widget = self.record_window_widgets.get("membership_registered")
+        expiry_widget = self.record_window_widgets.get("membership_expiry")
+        status_widget = self.record_window_widgets.get("membership_status")
+        days_widget = self.record_window_widgets.get("months_remaining")
 
-        self.secondary_button(
-            button_row,
-            "Clear Fields",
-            command=self.clear_form
-        ).pack(side="left", padx=8)
+        if duration_widget is None or registered_widget is None:
+            return
 
-    def collect_form_values(self):
+        duration_text = self.get_widget_value(duration_widget, "dropdown")
+        registration_text = self.get_widget_value(registered_widget, "date")
+
+        try:
+            month_count = int(duration_text.split()[0])
+        except Exception:
+            month_count = 1
+
+        try:
+            registration_date = datetime.strptime(registration_text, "%Y-%m-%d").date()
+        except Exception:
+            registration_date = date.today()
+
+        expiry_date = registration_date + timedelta(days=month_count * 30)
+        status = "Active" if date.today() <= expiry_date else "Expired"
+        days_remaining = max(0, (expiry_date - date.today()).days)
+
+        for widget, value in [
+            (expiry_widget, expiry_date.isoformat()),
+            (status_widget, status),
+            (days_widget, str(days_remaining)),
+        ]:
+            if widget is None:
+                continue
+
+            current_state = widget["state"] if not isinstance(widget, tk.Text) else widget["state"]
+            if isinstance(widget, tk.Text):
+                widget.config(state="normal")
+                widget.delete("1.0", tk.END)
+                widget.insert("1.0", value)
+                widget.config(state=current_state)
+            else:
+                widget.config(state="normal")
+                widget.delete(0, tk.END)
+                widget.insert(0, value)
+                widget.config(state=current_state)
+
+    def toggle_record_editing(self, window):
+        self.record_window_editing = not self.record_window_editing
+        if self.record_window_editing:
+            self.record_window_toggle_button.config(text="Save")
+            for column_name, widget in self.record_window_widgets.items():
+                if self.record_window_fields[column_name] == "readonly":
+                    continue
+                if isinstance(widget, tk.Text):
+                    widget.config(state="normal")
+                elif isinstance(widget, ttk.Combobox):
+                    widget.config(state="readonly")
+                else:
+                    widget.config(state="normal")
+            self.update_record_window_save_state()
+            return
+
+        self.save_window_record(window, is_new=False)
+
+    def update_record_window_save_state(self):
+        if self.record_window_save_button is None and self.record_window_toggle_button is None:
+            return
+
+        valid = True
+        for column_name, widget in self.record_window_widgets.items():
+            if self.record_window_fields[column_name] == "readonly":
+                continue
+            value = self.get_widget_value(widget, self.record_window_fields[column_name])
+            if value == "":
+                valid = False
+                break
+
+        if self.record_window_save_button is not None:
+            self.record_window_save_button.config(state="normal" if valid else "disabled")
+        if self.record_window_toggle_button is not None and self.record_window_editing:
+            self.record_window_toggle_button.config(state="normal" if valid else "disabled")
+
+    def get_widget_value(self, widget, data_type):
+        if isinstance(widget, tk.Text):
+            return widget.get("1.0", "end").strip()
+        return widget.get().strip()
+
+    def collect_window_values(self):
         config = self.current_config
         columns = []
         values = []
 
         for label_text, column_name, data_type in config["fields"]:
-            raw_value = self.form_entries[column_name].get().strip()
+            widget = self.record_window_widgets[column_name]
+            raw_value = self.get_widget_value(widget, data_type)
 
             if raw_value == "":
                 value = None
@@ -1229,59 +1550,70 @@ class SentinelAppleUI:
             columns.append(column_name)
             values.append(value)
 
+        if self.current_page == "Members":
+            columns, values = self.prepare_member_values(columns, values)
+
         return columns, values
 
-    def add_record(self):
+    def prepare_member_values(self, columns, values):
+        if "membership_duration" not in columns:
+            return columns, values
+
+        duration_index = columns.index("membership_duration")
+        registered_index = columns.index("membership_registered")
+        expiry_index = columns.index("membership_expiry")
+        status_index = columns.index("membership_status")
+        days_index = columns.index("months_remaining")
+
+        raw_duration = values[duration_index] or "1 Month"
+        duration_parts = raw_duration.split()
         try:
-            columns, values = self.collect_form_values()
+            month_count = int(duration_parts[0])
+        except (ValueError, IndexError):
+            month_count = 1
 
-            self.db.insert_record(
-                self.current_config["table"],
-                columns,
-                values
-            )
+        registration_date = date.today()
+        if values[registered_index]:
+            try:
+                registration_date = datetime.strptime(values[registered_index], "%Y-%m-%d").date()
+            except ValueError:
+                registration_date = date.today()
 
-            messagebox.showinfo("Success", "Record added successfully.")
-            self.clear_form()
-            self.load_table(self.search_entry.get().strip())
+        expiry_date = registration_date + timedelta(days=month_count * 30)
+        status = "Active" if date.today() <= expiry_date else "Expired"
+        days_remaining = max(0, (expiry_date - date.today()).days)
 
-        except Exception as error:
-            messagebox.showerror("Add Failed", str(error))
+        values[registered_index] = registration_date.isoformat()
+        values[expiry_index] = expiry_date.isoformat()
+        values[status_index] = status
+        values[days_index] = days_remaining
 
-    def update_record(self):
-        if self.selected_id is None:
-            messagebox.showwarning(
-                "No Selection",
-                "Please select a record to update."
-            )
-            return
+        return columns, values
 
+    def save_window_record(self, window, is_new=False):
         try:
-            columns, values = self.collect_form_values()
+            columns, values = self.collect_window_values()
+            if is_new:
+                self.db.insert_record(
+                    self.current_config["table"],
+                    columns,
+                    values
+                )
+            else:
+                self.db.update_record(
+                    self.current_config["table"],
+                    self.current_config["pk"],
+                    self.record_window_id,
+                    columns,
+                    values
+                )
 
-            self.db.update_record(
-                self.current_config["table"],
-                self.current_config["pk"],
-                self.selected_id,
-                columns,
-                values
-            )
-
-            messagebox.showinfo("Success", "Record updated successfully.")
-            self.clear_form()
             self.load_table(self.search_entry.get().strip())
-
+            window.destroy()
         except Exception as error:
-            messagebox.showerror("Update Failed", str(error))
+            messagebox.showerror("Save Failed", str(error))
 
-    def delete_record(self):
-        if self.selected_id is None:
-            messagebox.showwarning(
-                "No Selection",
-                "Please select a record to delete."
-            )
-            return
-
+    def delete_record_window(self, window):
         confirm = messagebox.askyesno(
             "Confirm Delete",
             "Are you sure you want to delete this record?"
@@ -1290,19 +1622,14 @@ class SentinelAppleUI:
         if not confirm:
             return
 
-        try:
-            self.db.delete_record(
-                self.current_config["table"],
-                self.current_config["pk"],
-                self.selected_id
-            )
+        self.db.delete_record(
+            self.current_config["table"],
+            self.current_config["pk"],
+            self.record_window_id
+        )
 
-            messagebox.showinfo("Success", "Record deleted successfully.")
-            self.clear_form()
-            self.load_table(self.search_entry.get().strip())
-
-        except Exception as error:
-            messagebox.showerror("Delete Failed", str(error))
+        self.load_table(self.search_entry.get().strip())
+        window.destroy()
 
     def on_row_selected(self, event):
         selected = self.current_tree.selection()
@@ -1316,24 +1643,6 @@ class SentinelAppleUI:
             return
 
         self.selected_id = values[0]
-
-        config = self.current_config
-        field_columns = [field[1] for field in config["fields"]]
-
-        record = self.db.fetch_one(
-            config["table"],
-            config["pk"],
-            self.selected_id,
-            field_columns
-        )
-
-        if record is None:
-            return
-
-        for column_name, value in zip(field_columns, record):
-            entry = self.form_entries[column_name]
-            entry.delete(0, tk.END)
-            entry.insert(0, "" if value is None else str(value))
 
     def clear_form(self):
         for entry in self.form_entries.values():
@@ -1366,8 +1675,8 @@ class SentinelAppleUI:
                 self.content,
                 bg="white",
                 parent_bg=self.colors["app_bg"],
-                radius=22,
-                padding=20
+                radius=28,
+                padding=22
             )
             card.pack(fill="x", padx=30, pady=8)
 
