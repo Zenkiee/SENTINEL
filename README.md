@@ -1,6 +1,6 @@
 # SENTINEL Gym Management System
 
-**SENTINEL** stands for Staff, Enrollment, Networked Training & Inventory Evaluation Ledger**.
+**SENTINEL** stands for Staff, Enrollment, Networked Training & Inventory Evaluation Ledger.
 
 This is a Python desktop application for managing a fitness center or gym. It uses **Tkinter** for the graphical user interface and **SQLite** for local database storage.
 
@@ -21,7 +21,6 @@ The application has two user roles:
 
 ## Features
 
-- Clean Apple-inspired desktop interface
 - Login screen with Admin and Trainer role selection
 - Dashboard with summary cards
 - Member management
@@ -205,17 +204,7 @@ Trainer can access:
 - Equipment
 - Equipment Logs
 
----
-
-## Current Limitations
-
-- Login does not use real user authentication yet.
-- Some reports redirect to the related page instead of generating a separate detailed report.
-- Some foreign key fields show IDs instead of names.
-- Membership duration uses a simple 30-day-per-month calculation.
-- The `months_remaining` database column is displayed as days remaining in the interface.
-
----
+--- 
 
 ## Possible Future Improvements
 
@@ -241,4 +230,4 @@ This makes the code easier to maintain because new record pages can be added by 
 
 ## Project Status
 
-This project is functional as a desktop CRUD system and is suitable for a school project or prototype. It can create, read, update, delete, search, and sort records using a local SQLite database.
+This project is functional as a desktop CRUD system. It can create, read, update, delete, search, and sort records using a local SQLite database.
