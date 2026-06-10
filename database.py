@@ -143,9 +143,9 @@ class Database:
                     days_remaining
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, [
-                ("Juan Dela Cruz", "Manila", "09123456789", "Monthly", "Expired", "Yes", "None", "2026-02-01", "1 Month", "2026-03-01", 0),
-                ("Maria Santos", "Quezon City", "09987654321", "Student", "Expired", "Yes", "Asthma", "2026-01-01", "1 Month", "2026-02-01", 0),
-                ("Peter Reyes", "Makati", "09111112222", "Annual", "Active", "Yes", "None", "2026-01-10", "12 Months", "2027-01-10", 218),
+                ("Carlos Miguel Ernacio", "Manila", "09123456789", "Monthly", "Expired", "Yes", "None", "2026-02-01", "1 Month", "2026-03-01", 0),
+                ("Jedidiah Jubal Tio", "Quezon City", "09987654321", "Student", "Expired", "Yes", "Asthma", "2026-01-01", "1 Month", "2026-02-01", 0),
+                ("Cris Jimenez", "Makati", "09111112222", "Annual", "Active", "Yes", "None", "2026-01-10", "12 Months", "2027-01-10", 218),
             ])
 
         cursor.execute("SELECT COUNT(*) FROM trainers")
@@ -155,9 +155,9 @@ class Database:
                     trainer_name, email, specialization, salary, hire_date, years_experience
                 ) VALUES (?, ?, ?, ?, ?, ?)
             """, [
-                ("Coach Mark", "mark@email.com", "Strength", 25000, "2021-06-01", 5),
-                ("Coach Ana", "ana@email.com", "Yoga", 22000, "2023-03-15", 3),
-                ("Coach Leo", "leo@email.com", "Cardio", 24000, "2022-09-10", 4),
+                ("Coach Zach", "mark@email.com", "Strength", 25000, "2021-06-01", 5),
+                ("Coach Paul", "ana@email.com", "Yoga", 22000, "2023-03-15", 3),
+                ("Coach Marc", "leo@email.com", "Cardio", 24000, "2022-09-10", 4),
             ])
 
         cursor.execute("SELECT COUNT(*) FROM class_sessions")
@@ -167,9 +167,9 @@ class Database:
                     class_name, schedule, capacity, assigned_trainer
                 ) VALUES (?, ?, ?, ?)
             """, [
-                ("Yoga Basics", "Mon/Wed 9:00 AM", 20, "Coach Ana"),
-                ("Strength 101", "Tue/Thu 1:00 PM", 15, "Coach Mark"),
-                ("Cardio Blast", "Fri 4:00 PM", 25, "Coach Leo"),
+                ("Yoga Basics", "Mon/Wed 9:00 AM", 20, "Coach Paul"),
+                ("Strength 101", "Tue/Thu 1:00 PM", 15, "Coach Zach"),
+                ("Cardio Blast", "Fri 4:00 PM", 25, "Coach Marc"),
             ])
 
         cursor.execute("SELECT COUNT(*) FROM equipment")
