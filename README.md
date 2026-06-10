@@ -1,6 +1,6 @@
 # SENTINEL Gym Management System
 
-**SENTINEL** stands for Staff, Enrollment, Networked Training & Inventory Evaluation Ledger**.
+**SENTINEL** stands for Staff, Enrollment, Networked Training & Inventory Evaluation Ledger.
 
 This is a Python desktop application for managing a fitness center or gym. It uses **Tkinter** for the graphical user interface and **SQLite** for local database storage.
 
