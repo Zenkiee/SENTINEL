@@ -21,7 +21,6 @@ The application has two user roles:
 
 ## Features
 
-- Clean Apple-inspired desktop interface
 - Login screen with Admin and Trainer role selection
 - Dashboard with summary cards
 - Member management
