@@ -128,9 +128,9 @@ class Database:
                     months_remaining
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, [
-                ("Juan Dela Cruz", "Manila", "09123456789", "Monthly", "Active", "Yes", "None", "2026-02-01", "1 Month", "2026-03-01", 1),
+                ("Juan Dela Cruz", "Manila", "09123456789", "Monthly", "Expired", "Yes", "None", "2026-02-01", "1 Month", "2026-03-01", 0),
                 ("Maria Santos", "Quezon City", "09987654321", "Student", "Expired", "Yes", "Asthma", "2026-01-01", "1 Month", "2026-02-01", 0),
-                ("Peter Reyes", "Makati", "09111112222", "Annual", "Active", "Yes", "None", "2026-01-10", "12 Months", "2027-01-10", 11),
+                ("Peter Reyes", "Makati", "09111112222", "Annual", "Active", "Yes", "None", "2026-01-10", "12 Months", "2027-01-10", 218),
             ])
 
         cursor.execute("SELECT COUNT(*) FROM trainers")
