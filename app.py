@@ -7,7 +7,7 @@ from database import Database
 from ui_components import RoundedFrame
 
 
-class SentinelAppleUI:
+class SentinelApp:
     def __init__(self, root):
         self.root = root
         self.root.title(APP_TITLE)
