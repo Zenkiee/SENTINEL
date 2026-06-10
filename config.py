@@ -5,6 +5,8 @@ APP_TITLE = "SENTINEL"
 WINDOW_GEOMETRY = "1240x780"
 MIN_WINDOW_SIZE = (1050, 680)
 
+FONT_FAMILY = "Segoe UI"
+
 COLORS = {
     "app_bg": "#F5F5F7",
     "card": "#FFFFFF",
@@ -21,22 +23,3 @@ COLORS = {
     "soft_red": "#FFF0EF",
     "input": "#F9F9FB",
 }
-
-
-def get_apple_like_font():
-    available_fonts = list(tkfont.families())
-
-    preferred_fonts = [
-        "SF Pro Display",
-        "SF Pro Text",
-        "Segoe UI Variable",
-        "Segoe UI",
-        "Helvetica Neue",
-        "Arial",
-    ]
-
-    for font in preferred_fonts:
-        if font in available_fonts:
-            return font
-
-    return "Arial"

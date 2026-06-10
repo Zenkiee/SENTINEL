@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import date, datetime, timedelta
 
-from config import APP_TITLE, WINDOW_GEOMETRY, MIN_WINDOW_SIZE, COLORS, get_apple_like_font
+from config import APP_TITLE, WINDOW_GEOMETRY, MIN_WINDOW_SIZE, COLORS, FONT_FAMILY
 from database import Database
 from ui_components import RoundedFrame
 
@@ -30,7 +30,7 @@ class SentinelAppleUI:
         self.search_mode = None
 
         self.colors = COLORS
-        self.font = get_apple_like_font()
+        self.font = FONT_FAMILY
 
         self.setup_styles()
         self.show_login()
