@@ -29,9 +29,11 @@ class Database:
                 membership_registered TEXT,
                 membership_duration TEXT,
                 membership_expiry TEXT,
-                months_remaining INTEGER
+                days_remaining INTEGER
             )
         """)
+
+        self.migrate_members_days_column(cursor)
 
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS trainers (
@@ -114,6 +116,19 @@ class Database:
         conn.commit()
         conn.close()
 
+    def migrate_members_days_column(self, cursor):
+        cursor.execute("PRAGMA table_info(members)")
+        columns = [column[1] for column in cursor.fetchall()]
+
+        if "months_remaining" in columns and "days_remaining" not in columns:
+            cursor.execute("ALTER TABLE members RENAME COLUMN months_remaining TO days_remaining")
+        elif "days_remaining" not in columns:
+            cursor.execute("ALTER TABLE members ADD COLUMN days_remaining INTEGER")
+
+    def get_existing_ids(self, cursor, table, pk):
+        cursor.execute(f"SELECT {pk} FROM {table}")
+        return {row[0] for row in cursor.fetchall()}
+
     def seed_sample_data(self):
         conn = self.connect()
         cursor = conn.cursor()
@@ -125,7 +140,7 @@ class Database:
                     member_name, residence_address, contact_number, membership_type,
                     membership_status, medical_clearance, health_issues,
                     membership_registered, membership_duration, membership_expiry,
-                    months_remaining
+                    days_remaining
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, [
                 ("Juan Dela Cruz", "Manila", "09123456789", "Monthly", "Expired", "Yes", "None", "2026-02-01", "1 Month", "2026-03-01", 0),
@@ -169,51 +184,79 @@ class Database:
                 ("Stationary Bike", "Cardio", "Available", "2025-02-10", 30000, "1 year"),
             ])
 
+        member_ids = self.get_existing_ids(cursor, "members", "member_id")
+        session_ids = self.get_existing_ids(cursor, "class_sessions", "session_id")
+        equipment_ids = self.get_existing_ids(cursor, "equipment", "equipment_id")
+
         cursor.execute("SELECT COUNT(*) FROM class_enrollment")
         if cursor.fetchone()[0] == 0:
-            cursor.executemany("""
-                INSERT INTO class_enrollment (
-                    member_id, session_id, enrolled_date
-                ) VALUES (?, ?, ?)
-            """, [
+            enrollment_rows = [
                 (1, 1, "2026-02-15"),
                 (3, 2, "2026-02-18"),
                 (1, 3, "2026-02-20"),
-            ])
+            ]
+            enrollment_rows = [
+                row for row in enrollment_rows
+                if row[0] in member_ids and row[1] in session_ids
+            ]
+            if enrollment_rows:
+                cursor.executemany("""
+                    INSERT INTO class_enrollment (
+                        member_id, session_id, enrolled_date
+                    ) VALUES (?, ?, ?)
+                """, enrollment_rows)
 
         cursor.execute("SELECT COUNT(*) FROM attendance")
         if cursor.fetchone()[0] == 0:
-            cursor.executemany("""
-                INSERT INTO attendance (
-                    member_id, session_id, check_in_time
-                ) VALUES (?, ?, ?)
-            """, [
+            attendance_rows = [
                 (1, 1, "2026-02-23 09:05 AM"),
                 (3, 2, "2026-02-23 01:02 PM"),
-            ])
+            ]
+            attendance_rows = [
+                row for row in attendance_rows
+                if row[0] in member_ids and row[1] in session_ids
+            ]
+            if attendance_rows:
+                cursor.executemany("""
+                    INSERT INTO attendance (
+                        member_id, session_id, check_in_time
+                    ) VALUES (?, ?, ?)
+                """, attendance_rows)
 
         cursor.execute("SELECT COUNT(*) FROM equipment_logs")
         if cursor.fetchone()[0] == 0:
-            cursor.executemany("""
-                INSERT INTO equipment_logs (
-                    equipment_id, action_taken, log_date
-                ) VALUES (?, ?, ?)
-            """, [
+            equipment_log_rows = [
                 (2, "Replaced padding", "2026-02-21"),
                 (1, "Routine check", "2026-02-22"),
-            ])
+            ]
+            equipment_log_rows = [
+                row for row in equipment_log_rows
+                if row[0] in equipment_ids
+            ]
+            if equipment_log_rows:
+                cursor.executemany("""
+                    INSERT INTO equipment_logs (
+                        equipment_id, action_taken, log_date
+                    ) VALUES (?, ?, ?)
+                """, equipment_log_rows)
 
         cursor.execute("SELECT COUNT(*) FROM transactions")
         if cursor.fetchone()[0] == 0:
-            cursor.executemany("""
-                INSERT INTO transactions (
-                    member_id, amount, transaction_date, payment_type, total_amount
-                ) VALUES (?, ?, ?, ?, ?)
-            """, [
+            transaction_rows = [
                 (1, 1200, "2026-02-20", "Cash", 1200),
                 (2, 900, "2026-02-21", "GCash", 900),
                 (3, 1500, "2026-02-22", "Card", 1500),
-            ])
+            ]
+            transaction_rows = [
+                row for row in transaction_rows
+                if row[0] in member_ids
+            ]
+            if transaction_rows:
+                cursor.executemany("""
+                    INSERT INTO transactions (
+                        member_id, amount, transaction_date, payment_type, total_amount
+                    ) VALUES (?, ?, ?, ?, ?)
+                """, transaction_rows)
 
         conn.commit()
         conn.close()

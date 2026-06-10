@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-from datetime import date, datetime, timedelta
+import calendar
+from datetime import date, datetime
 
 from config import APP_TITLE, WINDOW_GEOMETRY, MIN_WINDOW_SIZE, COLORS, FONT_FAMILY
 from database import Database
@@ -24,6 +25,7 @@ class SentinelApp:
         self.form_entries = {}
         self.current_tree = None
         self.selected_id = None
+        self.search_entry = None
         
         self.sort_column = None
         self.sort_ascending = False
@@ -544,7 +546,7 @@ class SentinelApp:
                     ("Membership Duration", "membership_duration", "dropdown"),
                     ("Membership Expiry", "membership_expiry", "readonly"),
                     ("Membership Status", "membership_status", "readonly"),
-                    ("Days Remaining", "months_remaining", "readonly"),
+                    ("Days Remaining", "days_remaining", "readonly"),
                 ],
             },
             "Trainers": {
@@ -1070,7 +1072,7 @@ class SentinelApp:
         )
         self.table_container.pack(fill="x")
 
-        self.load_table("")
+        self.load_table(search_text)
 
     def go_to_page_with_search(self, page, search_text):
         self.current_page = page
@@ -1238,7 +1240,41 @@ class SentinelApp:
         except (ValueError, IndexError):
             return
 
-        self.load_table("")
+        self.reload_current_table()
+
+    def reload_current_table(self):
+        search_text = ""
+        if self.search_entry is not None:
+            search_text = self.search_entry.get().strip()
+
+        if not search_text:
+            self.search_mode = None
+            self.load_table("")
+            return
+
+        if self.search_mode == "id":
+            id_column = self.current_config["display_columns"][0]
+            self.load_table_filtered(search_text, [id_column])
+            return
+
+        if self.search_mode == "name":
+            name_columns = [
+                col for col in self.current_config["search_columns"]
+                if "name" in col.lower()
+            ]
+            if name_columns:
+                self.load_table_filtered(search_text, name_columns)
+                return
+
+        self.load_table(search_text)
+
+    def add_months(self, start_date, months):
+        month_index = start_date.month - 1 + months
+        year = start_date.year + month_index // 12
+        month = month_index % 12 + 1
+        last_day = calendar.monthrange(year, month)[1]
+        day = min(start_date.day, last_day)
+        return date(year, month, day)
 
     def on_row_double_click(self, event):
         tree = event.widget
@@ -1325,7 +1361,7 @@ class SentinelApp:
                     raw_value = "1 Month"
                 elif column_name == "membership_status":
                     raw_value = "Active"
-                elif column_name == "months_remaining":
+                elif column_name == "days_remaining":
                     raw_value = "0"
 
             widget = None
@@ -1440,7 +1476,7 @@ class SentinelApp:
         registered_widget = self.record_window_widgets.get("membership_registered")
         expiry_widget = self.record_window_widgets.get("membership_expiry")
         status_widget = self.record_window_widgets.get("membership_status")
-        days_widget = self.record_window_widgets.get("months_remaining")
+        days_widget = self.record_window_widgets.get("days_remaining")
 
         if duration_widget is None or registered_widget is None:
             return
@@ -1458,7 +1494,7 @@ class SentinelApp:
         except Exception:
             registration_date = date.today()
 
-        expiry_date = registration_date + timedelta(days=month_count * 30)
+        expiry_date = self.add_months(registration_date, month_count)
         status = "Active" if date.today() <= expiry_date else "Expired"
         days_remaining = max(0, (expiry_date - date.today()).days)
 
@@ -1563,7 +1599,7 @@ class SentinelApp:
         registered_index = columns.index("membership_registered")
         expiry_index = columns.index("membership_expiry")
         status_index = columns.index("membership_status")
-        days_index = columns.index("months_remaining")
+        days_index = columns.index("days_remaining")
 
         raw_duration = values[duration_index] or "1 Month"
         duration_parts = raw_duration.split()
@@ -1579,7 +1615,7 @@ class SentinelApp:
             except ValueError:
                 registration_date = date.today()
 
-        expiry_date = registration_date + timedelta(days=month_count * 30)
+        expiry_date = self.add_months(registration_date, month_count)
         status = "Active" if date.today() <= expiry_date else "Expired"
         days_remaining = max(0, (expiry_date - date.today()).days)
 
