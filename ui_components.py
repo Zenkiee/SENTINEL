@@ -1,6 +1,5 @@
 import tkinter as tk
 
-
 class RoundedFrame(tk.Frame):
     def __init__(
         self,
