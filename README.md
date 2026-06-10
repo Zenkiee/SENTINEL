@@ -240,4 +240,4 @@ This makes the code easier to maintain because new record pages can be added by 
 
 ## Project Status
 
-This project is functional as a desktop CRUD system and is suitable for a school project or prototype. It can create, read, update, delete, search, and sort records using a local SQLite database.
+This project is functional as a desktop CRUD system. It can create, read, update, delete, search, and sort records using a local SQLite database.
