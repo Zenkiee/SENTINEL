@@ -155,9 +155,9 @@ class Database:
                     trainer_name, email, specialization, salary, hire_date, years_experience
                 ) VALUES (?, ?, ?, ?, ?, ?)
             """, [
-                ("Coach Zach", "mark@email.com", "Strength", 25000, "2021-06-01", 5),
-                ("Coach Paul", "ana@email.com", "Yoga", 22000, "2023-03-15", 3),
-                ("Coach Marc", "leo@email.com", "Cardio", 24000, "2022-09-10", 4),
+                ("Coach Zach", "zach@email.com", "Strength", 25000, "2021-06-01", 5),
+                ("Coach Paul", "paul@email.com", "Yoga", 22000, "2023-03-15", 3),
+                ("Coach Marc", "marc@email.com", "Cardio", 24000, "2022-09-10", 4),
             ])
 
         cursor.execute("SELECT COUNT(*) FROM class_sessions")
