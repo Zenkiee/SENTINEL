@@ -2,25 +2,25 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import calendar
 from datetime import date, datetime
-
+ 
 from config import APP_TITLE, WINDOW_GEOMETRY, MIN_WINDOW_SIZE, COLORS, FONT_FAMILY
 from database import Database
 from ui_components import RoundedFrame
-
-
+ 
+ 
 class SentinelApp:
     def __init__(self, root):
         self.root = root
         self.root.title(APP_TITLE)
         self.root.geometry(WINDOW_GEOMETRY)
         self.root.minsize(*MIN_WINDOW_SIZE)
-
+ 
         self.db = Database()
-
+ 
         self.current_user = ""
         self.current_role = "Admin"
         self.current_page = "Dashboard"
-
+ 
         self.current_config = None
         self.form_entries = {}
         self.current_tree = None
@@ -30,17 +30,17 @@ class SentinelApp:
         self.sort_column = None
         self.sort_ascending = False
         self.search_mode = None
-
+ 
         self.colors = COLORS
         self.font = FONT_FAMILY
-
+ 
         self.setup_styles()
         self.show_login()
-
+ 
     def setup_styles(self):
         style = ttk.Style()
         style.theme_use("clam")
-
+ 
         style.configure(
             "Treeview",
             background="white",
@@ -50,7 +50,7 @@ class SentinelApp:
             borderwidth=0,
             font=(self.font, 10)
         )
-
+ 
         style.configure(
             "Treeview.Heading",
             background="#F2F2F7",
@@ -59,13 +59,13 @@ class SentinelApp:
             borderwidth=0,
             relief="flat"
         )
-
+ 
         style.map(
             "Treeview",
-            background=[("selected", self.colors["soft_blue"])],
+            background=[("selected", "#7FA2C5")],
             foreground=[("selected", self.colors["text"])]
         )
-
+ 
         style.configure(
             "TCombobox",
             fieldbackground=self.colors["input"],
@@ -76,27 +76,31 @@ class SentinelApp:
             arrowsize=14,
             font=(self.font, 11)
         )
-
+ 
     def clear_root(self):
         for widget in self.root.winfo_children():
             widget.destroy()
-
+ 
     def clear_content(self):
         for widget in self.content.winfo_children():
             widget.destroy()
-
+ 
         self.selected_id = None
         self.form_entries = {}
         self.current_tree = None
 
     def apple_button(self, parent, text, command=None, bg=None, fg="white"):
-        return tk.Button(
+
+        normal_bg = bg or self.colors["accent"]
+        hover_bg = self.colors["accent_dark"]
+
+        btn = tk.Button(
             parent,
             text=text,
             command=command,
-            bg=bg or self.colors["accent"],
+            bg=normal_bg,
             fg=fg,
-            activebackground=self.colors["accent_dark"],
+            activebackground=hover_bg,
             activeforeground=fg,
             bd=0,
             relief="flat",
@@ -107,14 +111,26 @@ class SentinelApp:
             highlightthickness=0
         )
 
+        btn.bind("<Enter>", lambda e: btn.configure(bg=hover_bg))
+        btn.bind("<Leave>", lambda e: btn.configure(bg=normal_bg))
+
+        #Kapag clinicked, bahagyang lumiit yung button para may feedback na na-click siya
+        btn.bind("<ButtonPress-1>", lambda e: btn.configure(padx=22, pady=10))
+        btn.bind("<ButtonRelease-1>", lambda e: btn.configure(padx=24, pady=12))
+
+        return btn
+
     def secondary_button(self, parent, text, command=None):
-        return tk.Button(
+        normal_bg = "#F2F2F7"
+        hover_bg = "#E5E5EA"
+
+        btn = tk.Button(
             parent,
             text=text,
             command=command,
-            bg="#F2F2F7",
+            bg=normal_bg,
             fg=self.colors["text"],
-            activebackground="#E5E5EA",
+            activebackground=hover_bg,
             activeforeground=self.colors["text"],
             bd=0,
             relief="flat",
@@ -125,15 +141,29 @@ class SentinelApp:
             highlightthickness=0
         )
 
+        btn.bind("<Enter>", lambda e: btn.config(bg=hover_bg))
+        btn.bind("<Leave>", lambda e: btn.config(bg=normal_bg))
+
+        #Same idea as apple_button pero para sa secondary button.
+        btn.bind("<ButtonPress-1>",   lambda e: btn.config(pady=10, padx=22))
+        btn.bind("<ButtonRelease-1>", lambda e: btn.config(pady=12, padx=24))
+ 
+        return btn
+
     def danger_button(self, parent, text, command=None):
-        return tk.Button(
+        normal_bg = self.colors["soft_red"]
+        normal_fg = self.colors["red"]
+        hover_bg  = "#FFD0CD"
+        hover_fg  = "#C0392B"
+ 
+        btn = tk.Button(
             parent,
             text=text,
             command=command,
-            bg=self.colors["soft_red"],
-            fg=self.colors["red"],
+            bg=normal_bg,
+            fg=normal_fg,
             activebackground="#FFE0DE",
-            activeforeground=self.colors["red"],
+            activeforeground=normal_fg,
             bd=0,
             relief="flat",
             font=(self.font, 10, "bold"),
@@ -142,6 +172,16 @@ class SentinelApp:
             cursor="hand2",
             highlightthickness=0
         )
+ 
+        #Same hover and click feedback pattern as the other buttons, pero with red colors to indicate danger.
+        btn.bind("<Enter>", lambda e: btn.config(bg=hover_bg, fg=hover_fg))
+        btn.bind("<Leave>", lambda e: btn.config(bg=normal_bg, fg=normal_fg))
+ 
+        # ── Click feedback ────────────────────────────────────────────────
+        btn.bind("<ButtonPress-1>",   lambda e: btn.config(pady=10, padx=22))
+        btn.bind("<ButtonRelease-1>", lambda e: btn.config(pady=12, padx=24))
+ 
+        return btn
 
     def show_login(self):
         self.clear_root()
@@ -949,6 +989,34 @@ class SentinelApp:
                 radius=28,
                 padding=20
             )
+
+            # Hover effect ng Dashboard stats cards.
+            def on_enter(e, c=card):
+                c.canvas.configure(bg=self.colors["app_bg"])
+                c._draw_rounded_rect(1, 1, c.canvas.winfo_width()-1, c.canvas.winfo_height()-1,
+                                    c.radius, fill=self.colors["soft_blue"],
+                                    outline=self.colors["accent"], width=1, tags="rounded")
+                c.inner.configure(bg=self.colors["soft_blue"])
+                for widget in c.inner.winfo_children():
+                    widget.configure(bg=self.colors["soft_blue"])
+
+            def on_leave(e, c=card):
+                c.canvas.configure(bg=self.colors["app_bg"])
+                c._draw_rounded_rect(1, 1, c.canvas.winfo_width()-1, c.canvas.winfo_height()-1,
+                                    c.radius, fill="white",
+                                    outline=self.colors["line"], width=1, tags="rounded")
+                c.inner.configure(bg="white")
+                for widget in c.inner.winfo_children():
+                    widget.configure(bg="white")
+
+            card.canvas.bind("<Enter>", on_enter)
+            card.canvas.bind("<Leave>", on_leave)
+            card.inner.bind("<Enter>", on_enter)
+            card.inner.bind("<Leave>", on_leave)
+            for child in card.inner.winfo_children():
+                child.bind("<Enter>", on_enter)
+                child.bind("<Leave>", on_leave)
+
             card.grid(
                 row=i // columns,
                 column=i % columns,
@@ -1205,11 +1273,15 @@ class SentinelApp:
         )
 
         for col in headings:
-            tree.heading(col, text=col, command=lambda c=col: self.on_heading_click(c, headings))
-            tree.column(col, width=135, anchor="center")
+            tree.heading(col, text=col, anchor="w", command=lambda c=col: self.on_heading_click(c, headings))
+            tree.column(col, width=135, anchor="w")
 
-        for row in data:
-            tree.insert("", tk.END, values=row)
+        for idx, row in enumerate(data):
+            tag = "oddrow" if idx % 2 == 0 else "evenrow"
+            tree.insert("", tk.END, values=row, tags=(tag,))
+
+        tree.tag_configure("oddrow",  background="white")
+        tree.tag_configure("evenrow", background="#F0F0F5")
 
         y_scroll = ttk.Scrollbar(
             card.inner,
