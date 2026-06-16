@@ -233,30 +233,12 @@ class SentinelApp:
 
         self.username_entry = self.form_input(login_card.inner, "Username")
         self.password_entry = self.form_input(login_card.inner, "Password", show="*")
-
-        tk.Label(
-            login_card.inner,
-            text="Role",
-            bg="white",
-            fg=self.colors["muted"],
-            font=(self.font, 10, "bold")
-        ).pack(anchor="w", pady=(10, 6))
-
-        self.role_var = tk.StringVar(value="Admin")
-        role_box = ttk.Combobox(
-            login_card.inner,
-            textvariable=self.role_var,
-            values=["Admin", "Trainer"],
-            state="readonly",
-            font=(self.font, 11)
-        )
-        role_box.pack(fill="x", ipady=8)
-
+        
         self.apple_button(
             login_card.inner,
             "Log In",
             command=self.login
-        ).pack(fill="x", pady=(32, 14))
+        ).pack(fill="x", pady=(28, 14))
 
         register_link = tk.Label(
             login_card.inner,
@@ -359,20 +341,64 @@ class SentinelApp:
             font=(self.font, 10, "bold")
         ).pack(anchor="w", pady=(8, 6))
 
-        entry = tk.Entry(
-            parent,
-            bg=self.colors["input"],
-            fg=self.colors["text"],
-            insertbackground=self.colors["text"],
-            bd=0,
-            relief="flat",
-            font=(self.font, 12),
-            show=show,
-            validate="key" if validation_cmd else "none",
-            validatecommand=(validation_cmd, '%S') if validation_cmd else None
-        )
-        entry.pack(fill="x", ipady=11)
-        return entry
+        if show is not None:
+            input_frame = tk.Frame(parent, bg=self.colors["input"])
+            input_frame.pack(fill="x")
+
+            entry = tk.Entry(
+                input_frame,
+                bg=self.colors["input"],
+                fg=self.colors["text"],
+                insertbackground=self.colors["text"],
+                bd=0,
+                relief="flat",
+                font=(self.font, 12),
+                show=show,
+                validate="key" if validation_cmd else "none",
+                validatecommand=(validation_cmd, '%S') if validation_cmd else None
+            )
+            entry.pack(side="left", fill="x", expand=True, padx=(12, 4), ipady=11)
+
+            def toggle_password():
+                if entry.cget("show") == "*":
+                    entry.configure(show="")
+                    toggle_btn.configure(text="👁")  
+                else:
+                    entry.configure(show="*")
+                    toggle_btn.configure(text="👁")
+
+            toggle_btn = tk.Button(
+                input_frame,
+                text="👁",
+                bg=self.colors["input"],
+                fg=self.colors["muted"],
+                activebackground=self.colors["input"],
+                activeforeground=self.colors["text"],
+                bd=0,
+                relief="flat",
+                font=(self.font, 12),
+                cursor="hand2",
+                command=toggle_password,
+                highlightthickness=0
+            )
+            toggle_btn.pack(side="right", padx=(4, 12), fill="y")
+            return entry
+            
+        else:
+            entry = tk.Entry(
+                parent,
+                bg=self.colors["input"],
+                fg=self.colors["text"],
+                insertbackground=self.colors["text"],
+                bd=0,
+                relief="flat",
+                font=(self.font, 12),
+                show=show,
+                validate="key" if validation_cmd else "none",
+                validatecommand=(validation_cmd, '%S') if validation_cmd else None
+            )
+            entry.pack(fill="x", ipady=11)
+            return entry
 
     def login(self):
         username = self.username_entry.get().strip()
