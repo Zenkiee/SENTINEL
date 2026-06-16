@@ -142,6 +142,17 @@ class SentinelApp:
             cursor="hand2",
             highlightthickness=0
         )
+        
+    def validate_number_only(self, P):
+        if P == "":
+            return True
+        return P.isdigit()
+
+    def validate_no_emojis(self, P):
+        for char in P:
+            if ord(char) > 0xFFFF:
+                return False
+        return True
 
     def show_login(self):
         self.clear_root()
@@ -247,15 +258,127 @@ class SentinelApp:
             command=self.login
         ).pack(fill="x", pady=(32, 14))
 
-        tk.Label(
+        lbl_register = tk.Label(
             login_card.inner,
             text="Front-end demo: any username and password will work.",
             bg="white",
-            fg=self.colors["muted"],
-            font=(self.font, 9)
-        ).pack()
+            fg=self.colors["accent"],
+            font=(self.font, 10, "underline"),
+            cursor="hand2"
+        )
+        lbl_register.pack(pady=(5, 0))
+        lbl_register.bind("<Button-1>", lambda e: self.show_register())
 
-    def form_input(self, parent, label, show=None):
+    def show_register(self):
+        self.clear_root()
+        self.root.configure(bg=self.colors["app_bg"])
+
+        shell = tk.Frame(self.root, bg=self.colors["app_bg"])
+        shell.pack(expand=True, fill="both", padx=70, pady=55)
+
+        left = tk.Frame(shell, bg=self.colors["app_bg"])
+        left.pack(side="left", expand=True, fill="both", padx=(0, 35))
+
+        logo = tk.Label(
+            left,
+            text="S",
+            bg=self.colors["text"],
+            fg="white",
+            font=(self.font, 30, "bold"),
+            width=3,
+            height=1
+        )
+        logo.pack(anchor="w", pady=(70, 25))
+
+        tk.Label(
+            left,
+            text="SENTINEL",
+            bg=self.colors["app_bg"],
+            fg=self.colors["text"],
+            font=(self.font, 44, "bold")
+        ).pack(anchor="w")
+
+        tk.Label(
+            left,
+            text="Staff, Enrollment, Networked Training\n& Inventory Evaluation Ledger",
+            bg=self.colors["app_bg"],
+            fg=self.colors["muted"],
+            font=(self.font, 17),
+            justify="left"
+        ).pack(anchor="w", pady=(10, 24))
+
+        right = tk.Frame(shell, bg=self.colors["app_bg"])
+        right.pack(side="right", fill="both")
+
+        register_card = RoundedFrame(
+            right,
+            bg="white",
+            parent_bg=self.colors["app_bg"],
+            radius=28,
+            padding=34
+        )
+        register_card.pack(expand=True, fill="both")
+        register_card.configure(width=455, height=620)
+        register_card.pack_propagate(False)
+
+        tk.Label(
+            register_card.inner,
+            text="Create Account",
+            bg="white",
+            fg=self.colors["text"],
+            font=(self.font, 27, "bold")
+        ).pack(anchor="w", pady=(0, 6))
+
+        self.reg_username = self.form_input(register_card.inner, "Username")
+        self.reg_email = self.form_input(register_card.inner, "Email")
+        self.reg_contact = self.form_input(register_card.inner, "Contact Number", filter_type="number")
+        self.reg_password = self.form_input(register_card.inner, "Password", show="*")
+        self.reg_confirm = self.form_input(register_card.inner, "Confirm Password", show="*")
+
+        self.apple_button(
+            register_card.inner,
+            "Sign Up",
+            command=self.register_submit
+        ).pack(fill="x", pady=(28, 14))
+
+        lbl_signin = tk.Label(
+            register_card.inner,
+            text="returning user? sign in",
+            bg="white",
+            fg=self.colors["accent"],
+            font=(self.font, 10, "underline"),
+            cursor="hand2"
+        )
+        lbl_signin.pack(pady=(5, 0))
+        lbl_signin.bind("<Button-1>", lambda e: self.show_login())
+
+    def register_submit(self):
+        username = self.reg_username.get().strip()
+        email = self.reg_email.get().strip()
+        contact = self.reg_contact.get().strip()
+        password = self.reg_password.get().strip()
+        confirm = self.reg_confirm.get().strip()
+
+        if not all([username, email, contact, password, confirm]):
+            messagebox.showwarning("Registration Error", "All fields are required.")
+            return
+
+        if password != confirm:
+            messagebox.showwarning("Registration Error", "Passwords do not match.")
+            return
+
+        if "@" not in email or "." not in email:
+            messagebox.showwarning("Registration Error", "Please provide a valid email format.")
+            return
+
+        success = self.db.register_user(username, email, contact, password)
+        if success:
+            messagebox.showinfo("Success", "Account created successfully! You can now log in.")
+            self.show_login()
+        else:
+            messagebox.showerror("Error", "Username already exists. Please choose another name.")
+    
+    def form_input(self, parent, label, show=None, filter_type=None):
         tk.Label(
             parent,
             text=label,
@@ -274,8 +397,15 @@ class SentinelApp:
             font=(self.font, 12),
             show=show
         )
+        
+        if filter_type == "number":
+            vcmd = self.root.register(self.validate_number_only)
+            entry.config(validate="key", validatecommand=(vcmd, "%P"))
+        else:
+            vcmd = self.root.register(self.validate_no_emojis)
+            entry.config(validate="key", validatecommand=(vcmd, "%P"))
+            
         entry.pack(fill="x", ipady=11)
-
         return entry
 
     def login(self):
@@ -286,10 +416,14 @@ class SentinelApp:
             messagebox.showwarning("Login Failed", "Please enter username and password.")
             return
 
-        self.current_user = username
-        self.current_role = self.role_var.get()
-        self.current_page = "Dashboard"
-        self.show_main_app()
+        user_data = self.db.authenticate_user(username, password)
+        if user_data:
+            self.current_user = user_data[0]
+            self.current_role = user_data[1]
+            self.current_page = "Dashboard"
+            self.show_main_app()
+        else:
+            messagebox.showerror("Login Failed", "Invalid username or password.")
 
     def show_main_app(self):
         self.clear_root()

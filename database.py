@@ -1,6 +1,5 @@
 import sqlite3
 
-
 class Database:
     def __init__(self, db_name="sentinel.db"):
         self.db_name = db_name
@@ -15,6 +14,17 @@ class Database:
     def create_tables(self):
         conn = self.connect()
         cursor = conn.cursor()
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                user_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL UNIQUE,
+                email TEXT,
+                contact_number TEXT,
+                password TEXT NOT NULL,
+                role TEXT NOT NULL DEFAULT 'Trainer'
+            )
+        """)
 
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS members (
@@ -135,6 +145,13 @@ class Database:
 
         cursor.execute("SELECT COUNT(*) FROM members")
         if cursor.fetchone()[0] == 0:
+            cursor.execute("""
+                INSERT INTO users (username, email, contact_number, password, role)
+                VALUES (?, ?, ?, ?, ?)
+            """, ("SentinelSuperAdmin-1", "admin@sentinel.com", "09123456789", "Password", "Admin"))
+            
+        cursor.execute("SELECT COUNT(*) FROM members")
+        if cursor.fetchone()[0] == 0:
             cursor.executemany("""
                 INSERT INTO members (
                     member_name, residence_address, contact_number, membership_type,
@@ -147,7 +164,7 @@ class Database:
                 ("Jedidiah Jubal Tio", "Quezon City", "09987654321", "Student", "Expired", "Yes", "Asthma", "2026-01-01", "1 Month", "2026-02-01", 0),
                 ("Cris Jimenez", "Makati", "09111112222", "Annual", "Active", "Yes", "None", "2026-01-10", "12 Months", "2027-01-10", 218),
             ])
-
+        
         cursor.execute("SELECT COUNT(*) FROM trainers")
         if cursor.fetchone()[0] == 0:
             cursor.executemany("""
@@ -261,6 +278,33 @@ class Database:
         conn.commit()
         conn.close()
 
+    def authenticate_user(self, username, password):
+        conn = self.connect()
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT username, role FROM users WHERE username = ? AND password = ?",
+            (username, password)
+        )
+        row = cursor.fetchone()
+        conn.close()
+        return row
+
+    def register_user(self, username, email, contact, password):
+        conn = self.connect()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                INSERT INTO users (username, email, contact_number, password, role)
+                VALUES (?, ?, ?, ?, 'Trainer')
+            """, (username, email, contact, password))
+            conn.commit()
+            success = True
+        except sqlite3.IntegrityError:
+            success = False
+        finally:
+            conn.close()
+        return success
+    
     def fetch_records(self, table, columns, search_term="", search_columns=None):
         conn = self.connect()
         cursor = conn.cursor()
