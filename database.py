@@ -1,7 +1,10 @@
 import sqlite3
-
+import hashlib
 
 class Database:
+    def hash_password(self, password):
+        return hashlib.sha256(password.encode('utf-8')).hexdigest()
+    
     def __init__(self, db_name="sentinel.db"):
         self.db_name = db_name
         self.create_tables()
@@ -15,6 +18,17 @@ class Database:
     def create_tables(self):
         conn = self.connect()
         cursor = conn.cursor()
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                user_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+                email TEXT UNIQUE,
+                contact_number TEXT UNIQUE,
+                password_hash TEXT NOT NULL,
+                role TEXT NOT NULL DEFAULT 'Trainer'
+            )
+        """)
 
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS members (
@@ -133,6 +147,14 @@ class Database:
         conn = self.connect()
         cursor = conn.cursor()
 
+        cursor.execute("SELECT COUNT(*) FROM users")
+        if cursor.fetchone()[0] == 0:
+            pw_hash = hashlib.sha256("Admin123".encode()).hexdigest()
+            cursor.execute("""
+                INSERT INTO users (username, email, contact_number, password_hash, role)
+                VALUES (?, ?, ?, ?, ?)
+            """, ("SentinelSuperAdmin-1", "admin@sentinel.com", "09123456789", pw_hash, "Admin"))
+            
         cursor.execute("SELECT COUNT(*) FROM members")
         if cursor.fetchone()[0] == 0:
             cursor.executemany("""
@@ -147,7 +169,7 @@ class Database:
                 ("Jedidiah Jubal Tio", "Quezon City", "09987654321", "Student", "Expired", "Yes", "Asthma", "2026-01-01", "1 Month", "2026-02-01", 0),
                 ("Cris Jimenez", "Makati", "09111112222", "Annual", "Active", "Yes", "None", "2026-01-10", "12 Months", "2027-01-10", 218),
             ])
-
+        
         cursor.execute("SELECT COUNT(*) FROM trainers")
         if cursor.fetchone()[0] == 0:
             cursor.executemany("""
@@ -261,6 +283,48 @@ class Database:
         conn.commit()
         conn.close()
 
+    def get_user_by_username(self, username):
+        conn = self.connect()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE LOWER(username) = LOWER(?)", (username,))
+        row = cursor.fetchone()
+        conn.close()
+        return row
+
+    def register_user(self, username, email, contact, password_hash, role="Trainer"):
+        try:
+            conn = self.connect()
+            cursor = conn.cursor()
+            
+            cursor.execute("SELECT 1 FROM users WHERE LOWER(username) = LOWER(?)", (username,))
+            if cursor.fetchone():
+                conn.close()
+                return False, f"Username '{username}' already exists."
+                
+            if email:
+                cursor.execute("SELECT 1 FROM users WHERE LOWER(email) = LOWER(?)", (email,))
+                if cursor.fetchone():
+                    conn.close()
+                    return False, "This email is already registered to another account."
+                
+            if contact:
+                cursor.execute("SELECT 1 FROM users WHERE contact_number = ?", (contact,))
+                if cursor.fetchone():
+                    conn.close()
+                    return False, "This contact number is already registered to another account."
+            
+            cursor.execute("""
+                INSERT INTO users (username, email, contact_number, password_hash, role)
+                VALUES (?, ?, ?, ?, ?)
+            """, (username, email, contact, password_hash, role))
+            
+            conn.commit()
+            conn.close()
+            return True, "Success"
+            
+        except Exception as e:
+            return False, str(e)
+    
     def fetch_records(self, table, columns, search_term="", search_columns=None):
         conn = self.connect()
         cursor = conn.cursor()
@@ -321,7 +385,7 @@ class Database:
 
         cursor.execute(
             f"UPDATE {table} SET {assignments} WHERE {pk} = ?",
-            values + [record_id]
+            list(values) + [record_id]
         )
 
         conn.commit()
