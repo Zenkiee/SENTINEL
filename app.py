@@ -61,10 +61,11 @@ class SentinelApp:
             relief="flat"
         )
 
+        # Highlight selected row lang, iniba ko kasi hindi nagiging halata dahil nilagyan ko ng striped effect yung rows. -PJ
         style.map(
             "Treeview",
-            background=[("selected", self.colors["soft_blue"])],
-            foreground=[("selected", self.colors["text"])]
+            background=[("selected", "#007AFF")],
+            foreground=[("selected", "white")]
         )
 
         style.configure(
@@ -90,60 +91,79 @@ class SentinelApp:
         self.form_entries = {}
         self.current_tree = None
 
+    # ─── Button Helpers ────────────────────────────────────────────────────────
+
+    def _bind_button_hover(self, btn, normal_bg, hover_bg, normal_fg="white", hover_fg="white"):
+        btn.bind("<Enter>", lambda e: btn.config(bg=hover_bg, fg=hover_fg), add="+")
+        btn.bind("<Leave>", lambda e: btn.config(bg=normal_bg, fg=normal_fg), add="+")
+
     def apple_button(self, parent, text, command=None, bg=None, fg="white"):
-        return tk.Button(
+        normal_bg = bg or self.colors["accent"]
+        hover_bg = self.colors["accent_dark"]
+        btn = tk.Button(
             parent,
             text=text,
             command=command,
-            bg=bg or self.colors["accent"],
+            bg=normal_bg,
             fg=fg,
-            activebackground=self.colors["accent_dark"],
+            activebackground=hover_bg,
             activeforeground=fg,
             bd=0,
             relief="flat",
             font=(self.font, 10, "bold"),
-            padx=24,
-            pady=12,
+            padx=22,
+            pady=10,
             cursor="hand2",
             highlightthickness=0
         )
+        # Rounded-looking via a subtle border radius feel (tk limitation: use padx/pady + font weight)
+        self._bind_button_hover(btn, normal_bg, hover_bg)
+        return btn
 
     def secondary_button(self, parent, text, command=None):
-        return tk.Button(
+        normal_bg = "#E8E8ED"
+        hover_bg = "#D1D1D6"
+        btn = tk.Button(
             parent,
             text=text,
             command=command,
-            bg="#F2F2F7",
+            bg=normal_bg,
             fg=self.colors["text"],
-            activebackground="#E5E5EA",
+            activebackground=hover_bg,
             activeforeground=self.colors["text"],
             bd=0,
             relief="flat",
             font=(self.font, 10, "bold"),
-            padx=24,
-            pady=12,
+            padx=22,
+            pady=10,
             cursor="hand2",
             highlightthickness=0
         )
+        self._bind_button_hover(btn, normal_bg, hover_bg, self.colors["text"], self.colors["text"])
+        return btn
 
     def danger_button(self, parent, text, command=None):
-        return tk.Button(
+        normal_bg = self.colors["soft_red"]
+        hover_bg = "#FFD0CC"
+        btn = tk.Button(
             parent,
             text=text,
             command=command,
-            bg=self.colors["soft_red"],
+            bg=normal_bg,
             fg=self.colors["red"],
-            activebackground="#FFE0DE",
+            activebackground=hover_bg,
             activeforeground=self.colors["red"],
             bd=0,
             relief="flat",
             font=(self.font, 10, "bold"),
-            padx=24,
-            pady=12,
+            padx=22,
+            pady=10,
             cursor="hand2",
             highlightthickness=0
         )
-        
+        self._bind_button_hover(btn, normal_bg, hover_bg, self.colors["red"], self.colors["red"])
+        return btn
+
     def validate_numbers_only(self, char):
         return char.isdigit() or char == ""
 
@@ -233,12 +253,30 @@ class SentinelApp:
 
         self.username_entry = self.form_input(login_card.inner, "Username")
         self.password_entry = self.form_input(login_card.inner, "Password", show="*")
-        
+
+        tk.Label(
+            login_card.inner,
+            text="Role",
+            bg="white",
+            fg=self.colors["muted"],
+            font=(self.font, 10, "bold")
+        ).pack(anchor="w", pady=(10, 6))
+
+        self.role_var = tk.StringVar(value="Admin")
+        role_box = ttk.Combobox(
+            login_card.inner,
+            textvariable=self.role_var,
+            values=["Admin", "Trainer"],
+            state="readonly",
+            font=(self.font, 11)
+        )
+        role_box.pack(fill="x", ipady=8)
+
         self.apple_button(
             login_card.inner,
             "Log In",
             command=self.login
-        ).pack(fill="x", pady=(28, 14))
+        ).pack(fill="x", pady=(32, 14))
 
         register_link = tk.Label(
             login_card.inner,
@@ -341,64 +379,20 @@ class SentinelApp:
             font=(self.font, 10, "bold")
         ).pack(anchor="w", pady=(8, 6))
 
-        if show is not None:
-            input_frame = tk.Frame(parent, bg=self.colors["input"])
-            input_frame.pack(fill="x")
-
-            entry = tk.Entry(
-                input_frame,
-                bg=self.colors["input"],
-                fg=self.colors["text"],
-                insertbackground=self.colors["text"],
-                bd=0,
-                relief="flat",
-                font=(self.font, 12),
-                show=show,
-                validate="key" if validation_cmd else "none",
-                validatecommand=(validation_cmd, '%S') if validation_cmd else None
-            )
-            entry.pack(side="left", fill="x", expand=True, padx=(12, 4), ipady=11)
-
-            def toggle_password():
-                if entry.cget("show") == "*":
-                    entry.configure(show="")
-                    toggle_btn.configure(text="👁")  
-                else:
-                    entry.configure(show="*")
-                    toggle_btn.configure(text="👁")
-
-            toggle_btn = tk.Button(
-                input_frame,
-                text="👁",
-                bg=self.colors["input"],
-                fg=self.colors["muted"],
-                activebackground=self.colors["input"],
-                activeforeground=self.colors["text"],
-                bd=0,
-                relief="flat",
-                font=(self.font, 12),
-                cursor="hand2",
-                command=toggle_password,
-                highlightthickness=0
-            )
-            toggle_btn.pack(side="right", padx=(4, 12), fill="y")
-            return entry
-            
-        else:
-            entry = tk.Entry(
-                parent,
-                bg=self.colors["input"],
-                fg=self.colors["text"],
-                insertbackground=self.colors["text"],
-                bd=0,
-                relief="flat",
-                font=(self.font, 12),
-                show=show,
-                validate="key" if validation_cmd else "none",
-                validatecommand=(validation_cmd, '%S') if validation_cmd else None
-            )
-            entry.pack(fill="x", ipady=11)
-            return entry
+        entry = tk.Entry(
+            parent,
+            bg=self.colors["input"],
+            fg=self.colors["text"],
+            insertbackground=self.colors["text"],
+            bd=0,
+            relief="flat",
+            font=(self.font, 12),
+            show=show,
+            validate="key" if validation_cmd else "none",
+            validatecommand=(validation_cmd, '%S') if validation_cmd else None
+        )
+        entry.pack(fill="x", ipady=11)
+        return entry
 
     def login(self):
         username = self.username_entry.get().strip()
@@ -568,14 +562,18 @@ class SentinelApp:
 
     def nav_button(self, text):
         active = text == self.current_page
+        normal_bg = self.colors["soft_blue"] if active else "white"
+        hover_bg = self.colors["soft_blue"]
+        normal_fg = self.colors["accent"] if active else self.colors["text"]
+        hover_fg = self.colors["accent"]
 
         btn = tk.Button(
             self.sidebar,
             text=text,
-            bg=self.colors["soft_blue"] if active else "white",
-            fg=self.colors["accent"] if active else self.colors["text"],
-            activebackground=self.colors["soft_blue"],
-            activeforeground=self.colors["accent"],
+            bg=normal_bg,
+            fg=normal_fg,
+            activebackground=hover_bg,
+            activeforeground=hover_fg,
             bd=0,
             relief="flat",
             anchor="w",
@@ -586,6 +584,7 @@ class SentinelApp:
             command=lambda name=text: self.go_to_page(name)
         )
         btn.pack(fill="x", padx=18, pady=2)
+        self._bind_button_hover(btn, normal_bg, hover_bg, normal_fg, hover_fg)
 
     def build_topbar(self):
         for widget in self.topbar.winfo_children():
@@ -975,7 +974,7 @@ class SentinelApp:
 
         self.stats_grid(stats, columns=4)
 
-        self.section_header("Today’s Classes")
+        self.section_header("Today's Classes")
 
         class_row = tk.Frame(self.content, bg=self.colors["app_bg"])
         class_row.pack(fill="x", padx=30, pady=(0, 20))
@@ -1075,12 +1074,16 @@ class SentinelApp:
         grid.pack(fill="x", padx=30, pady=(0, 18))
 
         for i, (label, value, color) in enumerate(stats):
+            # Slightly tinted hover bg based on the card's accent dot color
             card = RoundedFrame(
                 grid,
                 bg="white",
                 parent_bg=self.colors["app_bg"],
                 radius=28,
-                padding=20
+                padding=20,
+                hoverable=True,
+                hover_bg="#F7F9FF",
+                hover_border="#C5D8FF"
             )
             card.grid(
                 row=i // columns,
@@ -1123,7 +1126,10 @@ class SentinelApp:
             bg="white",
             parent_bg=self.colors["app_bg"],
             radius=22,
-            padding=18
+            padding=18,
+            hoverable=True,
+            hover_bg="#F7F9FF",
+            hover_border="#C5D8FF"
         )
 
         tk.Label(
@@ -1330,6 +1336,7 @@ class SentinelApp:
         )
         card.pack(fill="x", padx=30, pady=(0, 20))
 
+        # ── Treeview tag colours for striped rows ──────────────────────────────
         tree = ttk.Treeview(
             card.inner,
             columns=headings,
@@ -1337,12 +1344,17 @@ class SentinelApp:
             height=height
         )
 
+        # Register stripe tags
+        tree.tag_configure("odd_row",  background="#FFFFFF")
+        tree.tag_configure("even_row", background="#F5F8FF")   # faint blue-white stripe
+
         for col in headings:
             tree.heading(col, text=col, command=lambda c=col: self.on_heading_click(c, headings))
-            tree.column(col, width=135, anchor="center")
+            tree.column(col, width=135, anchor="w") #dito yung pinalitan ko for changing records alignments. -PJ
 
-        for row in data:
-            tree.insert("", tk.END, values=row)
+        for idx, row in enumerate(data):
+            tag = "even_row" if idx % 2 == 0 else "odd_row"
+            tree.insert("", tk.END, values=row, tags=(tag,))
 
         y_scroll = ttk.Scrollbar(
             card.inner,
@@ -1845,7 +1857,10 @@ class SentinelApp:
                 bg="white",
                 parent_bg=self.colors["app_bg"],
                 radius=28,
-                padding=22
+                padding=22,
+                hoverable=True,
+                hover_bg="#F7F9FF",
+                hover_border="#C5D8FF"
             )
             card.pack(fill="x", padx=30, pady=8)
 
