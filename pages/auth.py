@@ -92,6 +92,12 @@ class AuthPagesMixin:
 
         self.username_entry = self.form_input(login_card.inner, "Username")
         self.password_entry = self.form_input(login_card.inner, "Password", show="*")
+        self.login_show_password = tk.BooleanVar(value=False)
+        self.password_toggle(
+            login_card.inner,
+            self.login_show_password,
+            [self.password_entry],
+        )
 
         self.apple_button(
             login_card.inner,
@@ -152,6 +158,12 @@ class AuthPagesMixin:
         )
         self.reg_password = self.form_input(card.inner, "Password", show="*")
         self.reg_confirm = self.form_input(card.inner, "Confirm Password", show="*")
+        self.register_show_password = tk.BooleanVar(value=False)
+        self.password_toggle(
+            card.inner,
+            self.register_show_password,
+            [self.reg_password, self.reg_confirm],
+        )
 
         self.apple_button(
             card.inner,
@@ -244,6 +256,29 @@ class AuthPagesMixin:
             entry.insert(0, default_value)
         entry.pack(fill="x", ipady=11)
         return entry
+
+
+    def password_toggle(self, parent, variable, entries):
+        def toggle_password():
+            show_value = "" if variable.get() else "*"
+            for entry in entries:
+                entry.configure(show=show_value)
+
+        tk.Checkbutton(
+            parent,
+            text="Show password",
+            variable=variable,
+            command=toggle_password,
+            bg="white",
+            fg=self.colors["muted"],
+            activebackground="white",
+            activeforeground=self.colors["text"],
+            selectcolor="white",
+            font=(self.font, 10),
+            cursor="hand2",
+            bd=0,
+            highlightthickness=0
+        ).pack(anchor="w", pady=(8, 2))
 
 
     def login(self):
