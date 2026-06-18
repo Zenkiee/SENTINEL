@@ -355,6 +355,7 @@ class RecordsPagesMixin:
         self.record_window_save_button = None
         self.record_window_toggle_button = None
         self.record_window_locked_fields = set()
+        self.record_window_hidden_fields = set()
 
         if page_name == "Trainers" and record_values.get("user_id"):
             self.record_window_locked_fields.update([
@@ -363,12 +364,24 @@ class RecordsPagesMixin:
                 "contact_number",
             ])
 
-        if self.current_role != "Admin":
+        if self.current_role != "Admin" and page_name == "Trainers":
+            self.record_window_hidden_fields.add("user_id")
+            self.record_window_locked_fields.update([
+                column_name
+                for _, column_name, _ in config["fields"]
+                if column_name != "specialization"
+            ])
+        elif self.current_role != "Admin":
             self.record_window_locked_fields.update(config.get("admin_only_fields", []))
 
+        visible_index = 0
         for i, (label_text, column_name, data_type) in enumerate(config["fields"]):
-            row = i // 2
-            col = i % 2
+            if column_name in self.record_window_hidden_fields:
+                continue
+
+            row = visible_index // 2
+            col = visible_index % 2
+            visible_index += 1
 
             field_frame = tk.Frame(form_frame, bg="white")
             field_frame.grid(row=row, column=col, padx=8, pady=8, sticky="nsew")
@@ -454,6 +467,9 @@ class RecordsPagesMixin:
 
             self.record_window_widgets[column_name] = widget
             self.record_window_fields[column_name] = data_type
+
+            if locked_field:
+                self.record_window_fields[column_name] = "readonly"
 
             if data_type != "readonly":
                 if isinstance(widget, tk.Entry):
@@ -631,6 +647,9 @@ class RecordsPagesMixin:
         values = []
 
         for label_text, column_name, data_type in config["fields"]:
+            if column_name in self.record_window_hidden_fields or column_name in self.record_window_locked_fields:
+                continue
+
             widget = self.record_window_widgets[column_name]
             raw_value = self.get_widget_value(widget, data_type)
             value = parse_field_value(label_text, data_type, raw_value)
