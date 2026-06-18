@@ -156,7 +156,7 @@ class DashboardPagesMixin:
 
         self.hero_section(
             "My Trainer Profile",
-            "Your account details are linked to one trainer record. Finish the remaining professional details here."
+            "View your linked trainer profile and account details."
         )
 
         if self.current_trainer_id is None:
