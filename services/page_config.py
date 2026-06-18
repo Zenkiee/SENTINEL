@@ -48,6 +48,11 @@ PAGE_CONFIGS = {
             "contact_number",
             "specialization",
         ],
+        "admin_only_fields": [
+            "salary",
+            "hire_date",
+            "years_experience",
+        ],
         "display_columns": [
             "trainer_id",
             "trainer_name",

@@ -363,6 +363,9 @@ class RecordsPagesMixin:
                 "contact_number",
             ])
 
+        if self.current_role != "Admin":
+            self.record_window_locked_fields.update(config.get("admin_only_fields", []))
+
         for i, (label_text, column_name, data_type) in enumerate(config["fields"]):
             row = i // 2
             col = i % 2
