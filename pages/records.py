@@ -246,7 +246,10 @@ class RecordsPagesMixin:
         tree.tag_configure("even_row", background=self.colors["tree_stripe"], foreground=self.colors["text"])
 
         for col in headings:
-            tree.heading(col, text=col, command=lambda c=col: self.on_heading_click(c, headings))
+            if bind_select:
+                tree.heading(col, text=col, command=lambda c=col: self.on_heading_click(c, headings))
+            else:
+                tree.heading(col, text=col)
             tree.column(col, width=135, anchor="w") #dito yung pinalitan ko for changing records alignments. -PJ
 
         for idx, row in enumerate(data):

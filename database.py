@@ -701,3 +701,128 @@ class Database:
 
         conn.close()
         return total
+
+    def count_expiring_members(self, days=30):
+        conn = self.connect()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            SELECT COUNT(*)
+            FROM members
+            WHERE membership_status = 'Active'
+              AND days_remaining BETWEEN 0 AND ?
+            """,
+            (days,)
+        )
+        count = cursor.fetchone()[0]
+
+        conn.close()
+        return count
+
+    def fetch_expired_members_report(self, limit=6):
+        conn = self.connect()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            SELECT
+                m.member_id,
+                m.member_name,
+                m.contact_number,
+                m.membership_type,
+                m.membership_expiry,
+                COALESCE(t.trainer_name, 'Unassigned')
+            FROM members m
+            LEFT JOIN trainers t ON m.assigned_trainer_id = t.trainer_id
+            WHERE m.membership_status = 'Expired'
+            ORDER BY m.membership_expiry ASC, m.member_id DESC
+            LIMIT ?
+            """,
+            (limit,)
+        )
+        rows = cursor.fetchall()
+
+        conn.close()
+        return rows
+
+    def fetch_recent_transactions_report(self, limit=6):
+        conn = self.connect()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            SELECT
+                tr.transaction_id,
+                tr.member_id,
+                COALESCE(m.member_name, 'Deleted member'),
+                tr.transaction_date,
+                tr.payment_type,
+                tr.total_amount
+            FROM transactions tr
+            LEFT JOIN members m ON tr.member_id = m.member_id
+            ORDER BY tr.transaction_id DESC
+            LIMIT ?
+            """,
+            (limit,)
+        )
+        rows = cursor.fetchall()
+
+        conn.close()
+        return rows
+
+    def fetch_class_enrollment_report(self, limit=6):
+        conn = self.connect()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            SELECT
+                ce.enrollment_id,
+                COALESCE(m.member_name, 'Deleted member'),
+                COALESCE(cs.class_name, 'Deleted class'),
+                cs.schedule,
+                ce.enrolled_date
+            FROM class_enrollment ce
+            LEFT JOIN members m ON ce.member_id = m.member_id
+            LEFT JOIN class_sessions cs ON ce.session_id = cs.session_id
+            ORDER BY ce.enrollment_id DESC
+            LIMIT ?
+            """,
+            (limit,)
+        )
+        rows = cursor.fetchall()
+
+        conn.close()
+        return rows
+
+    def fetch_equipment_maintenance_report(self, limit=6):
+        conn = self.connect()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            SELECT
+                e.equipment_id,
+                e.equipment_name,
+                e.category,
+                e.status,
+                COALESCE(el.action_taken, 'No log yet'),
+                COALESCE(el.log_date, '')
+            FROM equipment e
+            LEFT JOIN (
+                SELECT equipment_id, MAX(log_id) AS latest_log_id
+                FROM equipment_logs
+                GROUP BY equipment_id
+            ) latest ON e.equipment_id = latest.equipment_id
+            LEFT JOIN equipment_logs el ON latest.latest_log_id = el.log_id
+            WHERE e.status = 'Under Maintenance'
+            ORDER BY e.equipment_id DESC
+            LIMIT ?
+            """,
+            (limit,)
+        )
+        rows = cursor.fetchall()
+
+        conn.close()
+        return rows
