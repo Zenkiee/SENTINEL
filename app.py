@@ -1,11 +1,21 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-import calendar
 from datetime import date, datetime
 import hashlib
 
 from config import APP_TITLE, WINDOW_GEOMETRY, MIN_WINDOW_SIZE, COLORS, FONT_FAMILY
 from database import Database
+from services.dropdown_options import (
+    get_dropdown_options as load_dropdown_options,
+    lookup_display_value as format_lookup_display_value,
+)
+from services.field_validation import parse_field_value
+from services.membership import (
+    add_months as calculate_expiry_date,
+    normalize_member_row as normalize_member_display_row,
+    prepare_member_values as prepare_membership_values,
+)
+from services.page_config import get_page_config as load_page_config
 from ui_components import RoundedFrame
 
 
@@ -663,265 +673,7 @@ class SentinelApp:
             self.show_login()
 
     def get_page_config(self, page_name):
-        configs = {
-            "Members": {
-                "table": "members",
-                "pk": "member_id",
-                "display_columns": [
-                    "member_id",
-                    "member_name",
-                    "contact_number",
-                    "membership_type",
-                    "membership_status",
-                    "membership_expiry",
-                ],
-                "headings": [
-                    "Member ID",
-                    "Name",
-                    "Contact",
-                    "Type",
-                    "Status",
-                    "Expiry",
-                ],
-                "search_columns": [
-                    "member_id",
-                    "member_name",
-                    "contact_number",
-                    "membership_type",
-                    "membership_status",
-                ],
-                "fields": [
-                    ("Member Name", "member_name", "text"),
-                    ("Residence Address", "residence_address", "text"),
-                    ("Contact Number", "contact_number", "contact"),
-                    ("Membership Type", "membership_type", "dropdown"),
-                    ("Medical Clearance", "medical_clearance", "dropdown"),
-                    ("Health Issues", "health_issues", "multiline"),
-                    ("Membership Registered", "membership_registered", "readonly"),
-                    ("Membership Duration", "membership_duration", "dropdown"),
-                    ("Membership Expiry", "membership_expiry", "readonly"),
-                    ("Membership Status", "membership_status", "readonly"),
-                    ("Days Remaining", "days_remaining", "readonly"),
-                ],
-            },
-            "Trainers": {
-                "table": "trainers",
-                "pk": "trainer_id",
-                "display_columns": [
-                    "trainer_id",
-                    "trainer_name",
-                    "email",
-                    "contact_number",
-                    "specialization",
-                    "years_experience",
-                ],
-                "headings": [
-                    "Trainer ID",
-                    "Name",
-                    "Email",
-                    "Contact",
-                    "Specialization",
-                    "Experience",
-                ],
-                "search_columns": [
-                    "trainer_id",
-                    "trainer_name",
-                    "email",
-                    "contact_number",
-                    "specialization",
-                ],
-                "fields": [
-                    ("User Account ID", "user_id", "readonly"),
-                    ("Trainer Name", "trainer_name", "account"),
-                    ("Email", "email", "account_email"),
-                    ("Contact Number", "contact_number", "account_contact"),
-                    ("Specialization", "specialization", "dropdown"),
-                    ("Salary", "salary", "float"),
-                    ("Hire Date", "hire_date", "date"),
-                    ("Years Experience", "years_experience", "int"),
-                ],
-            },
-            "Class Sessions": {
-                "table": "class_sessions",
-                "pk": "session_id",
-                "display_columns": [
-                    "session_id",
-                    "class_name",
-                    "schedule",
-                    "capacity",
-                    "assigned_trainer",
-                ],
-                "headings": [
-                    "Session ID",
-                    "Class Name",
-                    "Schedule",
-                    "Capacity",
-                    "Trainer",
-                ],
-                "search_columns": [
-                    "session_id",
-                    "class_name",
-                    "schedule",
-                    "assigned_trainer",
-                ],
-                "fields": [
-                    ("Class Name", "class_name", "text"),
-                    ("Schedule", "schedule", "text"),
-                    ("Capacity", "capacity", "int"),
-                    ("Assigned Trainer", "assigned_trainer", "dropdown"),
-                ],
-            },
-            "Class Enrollment": {
-                "table": "class_enrollment",
-                "pk": "enrollment_id",
-                "display_columns": [
-                    "enrollment_id",
-                    "member_id",
-                    "session_id",
-                    "enrolled_date",
-                ],
-                "headings": [
-                    "Enrollment ID",
-                    "Member ID",
-                    "Session ID",
-                    "Enrolled Date",
-                ],
-                "search_columns": [
-                    "enrollment_id",
-                    "member_id",
-                    "session_id",
-                    "enrolled_date",
-                ],
-                "fields": [
-                    ("Member ID", "member_id", "lookup"),
-                    ("Session ID", "session_id", "lookup"),
-                    ("Enrolled Date", "enrolled_date", "date"),
-                ],
-            },
-            "Attendance": {
-                "table": "attendance",
-                "pk": "attendance_id",
-                "display_columns": [
-                    "attendance_id",
-                    "member_id",
-                    "session_id",
-                    "check_in_time",
-                ],
-                "headings": [
-                    "Attendance ID",
-                    "Member ID",
-                    "Session ID",
-                    "Check-In Time",
-                ],
-                "search_columns": [
-                    "attendance_id",
-                    "member_id",
-                    "session_id",
-                    "check_in_time",
-                ],
-                "fields": [
-                    ("Member ID", "member_id", "lookup"),
-                    ("Session ID", "session_id", "lookup"),
-                    ("Check-In Time", "check_in_time", "text"),
-                ],
-            },
-            "Equipment": {
-                "table": "equipment",
-                "pk": "equipment_id",
-                "display_columns": [
-                    "equipment_id",
-                    "equipment_name",
-                    "category",
-                    "status",
-                    "purchase_cost",
-                    "age_of_equipment",
-                ],
-                "headings": [
-                    "Equipment ID",
-                    "Name",
-                    "Category",
-                    "Status",
-                    "Cost",
-                    "Age",
-                ],
-                "search_columns": [
-                    "equipment_id",
-                    "equipment_name",
-                    "category",
-                    "status",
-                ],
-                "fields": [
-                    ("Equipment Name", "equipment_name", "text"),
-                    ("Category", "category", "dropdown"),
-                    ("Status", "status", "dropdown"),
-                    ("Purchase Date", "purchase_date", "date"),
-                    ("Purchase Cost", "purchase_cost", "float"),
-                    ("Age of Equipment", "age_of_equipment", "text"),
-                ],
-            },
-            "Equipment Logs": {
-                "table": "equipment_logs",
-                "pk": "log_id",
-                "display_columns": [
-                    "log_id",
-                    "equipment_id",
-                    "action_taken",
-                    "log_date",
-                ],
-                "headings": [
-                    "Log ID",
-                    "Equipment ID",
-                    "Action Taken",
-                    "Log Date",
-                ],
-                "search_columns": [
-                    "log_id",
-                    "equipment_id",
-                    "action_taken",
-                    "log_date",
-                ],
-                "fields": [
-                    ("Equipment ID", "equipment_id", "lookup"),
-                    ("Action Taken", "action_taken", "text"),
-                    ("Log Date", "log_date", "date"),
-                ],
-            },
-            "Transactions": {
-                "table": "transactions",
-                "pk": "transaction_id",
-                "display_columns": [
-                    "transaction_id",
-                    "member_id",
-                    "amount",
-                    "transaction_date",
-                    "payment_type",
-                    "total_amount",
-                ],
-                "headings": [
-                    "Transaction ID",
-                    "Member ID",
-                    "Amount",
-                    "Date",
-                    "Payment Type",
-                    "Total",
-                ],
-                "search_columns": [
-                    "transaction_id",
-                    "member_id",
-                    "transaction_date",
-                    "payment_type",
-                ],
-                "fields": [
-                    ("Member ID", "member_id", "lookup"),
-                    ("Amount", "amount", "float"),
-                    ("Transaction Date", "transaction_date", "date"),
-                    ("Payment Type", "payment_type", "dropdown"),
-                    ("Total Amount", "total_amount", "float"),
-                ],
-            },
-        }
-
-        return configs[page_name]
+        return load_page_config(page_name)
 
     def show_admin_dashboard(self):
         self.clear_content()
@@ -1538,12 +1290,7 @@ class SentinelApp:
         self.load_table(search_text)
 
     def add_months(self, start_date, months):
-        month_index = start_date.month - 1 + months
-        year = start_date.year + month_index // 12
-        month = month_index % 12 + 1
-        last_day = calendar.monthrange(year, month)[1]
-        day = min(start_date.day, last_day)
-        return date(year, month, day)
+        return calculate_expiry_date(start_date, months)
 
     def on_row_double_click(self, event):
         tree = event.widget
@@ -1558,13 +1305,7 @@ class SentinelApp:
         self.open_record_window(self.current_page, record_id=values[0])
 
     def normalize_member_row(self, row):
-        try:
-            expiry_str = row[5]
-            expiry_date = datetime.strptime(expiry_str, "%Y-%m-%d").date()
-            status = "Active" if date.today() <= expiry_date else "Expired"
-            return (row[0], row[1], row[2], row[3], status, row[5])
-        except Exception:
-            return row
+        return normalize_member_display_row(row)
 
     def open_record_window(self, page_name, record_id=None, is_new=False):
         config = self.get_page_config(page_name)
@@ -1751,44 +1492,10 @@ class SentinelApp:
         self.update_record_window_save_state()
 
     def get_dropdown_options(self, page_name, column_name):
-        if page_name == "Members":
-            if column_name == "membership_type":
-                return ["Monthly", "Student", "Annual"]
-            if column_name == "membership_duration":
-                return ["1 Month", "3 Months", "6 Months", "12 Months"]
-            if column_name == "medical_clearance":
-                return ["Yes", "No"]
-        if page_name == "Trainers":
-            if column_name == "specialization":
-                return ["General Fitness", "Strength", "Cardio", "Yoga", "CrossFit", "Nutrition"]
-        if page_name == "Class Sessions":
-            if column_name == "assigned_trainer":
-                return self.db.fetch_trainer_names()
-        if page_name in ("Class Enrollment", "Attendance", "Transactions"):
-            if column_name == "member_id":
-                return self.db.fetch_lookup_options("members", "member_id", "member_name")
-        if page_name in ("Class Enrollment", "Attendance"):
-            if column_name == "session_id":
-                return self.db.fetch_lookup_options("class_sessions", "session_id", "class_name")
-        if page_name == "Equipment":
-            if column_name == "category":
-                return ["Cardio", "Strength", "Flexibility", "Free Weights", "Machine", "Accessory"]
-            if column_name == "status":
-                return ["Available", "Under Maintenance", "Unavailable", "Retired"]
-        if page_name == "Equipment Logs":
-            if column_name == "equipment_id":
-                return self.db.fetch_lookup_options("equipment", "equipment_id", "equipment_name")
-        if page_name == "Transactions":
-            if column_name == "payment_type":
-                return ["Cash", "GCash", "Card", "Bank Transfer"]
-        return []
+        return load_dropdown_options(self.db, page_name, column_name)
 
     def lookup_display_value(self, options, raw_value):
-        raw_text = str(raw_value)
-        for option in options:
-            if option.split(" - ", 1)[0] == raw_text:
-                return option
-        return raw_text
+        return format_lookup_display_value(options, raw_value)
 
     def update_member_computed_fields(self):
         if self.record_window_page != "Members":
@@ -1892,42 +1599,7 @@ class SentinelApp:
         for label_text, column_name, data_type in config["fields"]:
             widget = self.record_window_widgets[column_name]
             raw_value = self.get_widget_value(widget, data_type)
-
-            if raw_value == "":
-                value = None
-            elif data_type == "lookup":
-                try:
-                    value = int(raw_value.split(" - ", 1)[0])
-                except ValueError:
-                    raise ValueError(f"{label_text} must use a valid selected record.")
-            elif data_type == "int":
-                try:
-                    value = int(raw_value)
-                except ValueError:
-                    raise ValueError(f"{label_text} must be a whole number.")
-            elif data_type == "float":
-                try:
-                    value = float(raw_value)
-                except ValueError:
-                    raise ValueError(f"{label_text} must be a number.")
-                if value < 0:
-                    raise ValueError(f"{label_text} cannot be negative.")
-            elif data_type in ("email", "account_email"):
-                if "@" not in raw_value or "." not in raw_value:
-                    raise ValueError(f"{label_text} must be a valid email address.")
-                value = raw_value
-            elif data_type in ("contact", "account_contact"):
-                if not raw_value.isdigit() or len(raw_value) < 10:
-                    raise ValueError(f"{label_text} must be a valid contact number.")
-                value = raw_value
-            elif data_type == "date":
-                try:
-                    datetime.strptime(raw_value, "%Y-%m-%d")
-                except ValueError:
-                    raise ValueError(f"{label_text} must use YYYY-MM-DD format.")
-                value = raw_value
-            else:
-                value = raw_value
+            value = parse_field_value(label_text, data_type, raw_value)
 
             columns.append(column_name)
             values.append(value)
@@ -1938,39 +1610,7 @@ class SentinelApp:
         return columns, values
 
     def prepare_member_values(self, columns, values):
-        if "membership_duration" not in columns:
-            return columns, values
-
-        duration_index = columns.index("membership_duration")
-        registered_index = columns.index("membership_registered")
-        expiry_index = columns.index("membership_expiry")
-        status_index = columns.index("membership_status")
-        days_index = columns.index("days_remaining")
-
-        raw_duration = values[duration_index] or "1 Month"
-        duration_parts = raw_duration.split()
-        try:
-            month_count = int(duration_parts[0])
-        except (ValueError, IndexError):
-            month_count = 1
-
-        registration_date = date.today()
-        if values[registered_index]:
-            try:
-                registration_date = datetime.strptime(values[registered_index], "%Y-%m-%d").date()
-            except ValueError:
-                registration_date = date.today()
-
-        expiry_date = self.add_months(registration_date, month_count)
-        status = "Active" if date.today() <= expiry_date else "Expired"
-        days_remaining = max(0, (expiry_date - date.today()).days)
-
-        values[registered_index] = registration_date.isoformat()
-        values[expiry_index] = expiry_date.isoformat()
-        values[status_index] = status
-        values[days_index] = days_remaining
-
-        return columns, values
+        return prepare_membership_values(columns, values)
 
     def save_window_record(self, window, is_new=False):
         try:

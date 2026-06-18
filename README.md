@@ -59,10 +59,12 @@ No external Python packages are required.
 ```text
 SENTINEL-main/
 ├── main.py              # Starts the application
-├── app.py               # Main GUI layout, pages, navigation, and CRUD logic
+├── app.py               # Main GUI coordinator, pages, navigation, and CRUD windows
 ├── database.py          # SQLite database connection, tables, and data functions
 ├── ui_components.py     # Reusable UI components such as rounded frames
 ├── config.py            # App title, window size, fonts, and color palette
+├── services/            # Page configs, dropdown options, validation, and membership logic
+├── docs/                # Presentation, navigation, and design documentation
 ├── README.md            # Project documentation
 ├── .gitignore           # Files ignored by Git
 └── .gitattributes       # Git line-ending configuration
@@ -148,7 +150,7 @@ This is the entry point of the program. It creates the main Tkinter window and s
 
 ### `app.py`
 
-This is the largest file in the project. It contains the main application class, login screen, dashboards, sidebar navigation, tables, search functions, record windows, and report pages.
+This contains the main application class, login screen, dashboards, sidebar navigation, tables, search functions, record windows, and report pages.
 
 ### `database.py`
 
@@ -161,6 +163,15 @@ This file contains reusable interface components. The main component is `Rounded
 ### `config.py`
 
 This file stores the app title, window size, minimum window size, font, and color palette.
+
+### `services/`
+
+This folder keeps reusable non-visual logic outside the main GUI file:
+
+- `page_config.py` defines module table names, columns, headings, search fields, and form fields.
+- `dropdown_options.py` defines fixed dropdown values and database lookup options.
+- `field_validation.py` validates and converts form values before saving.
+- `membership.py` calculates membership expiry, status, and days remaining.
 
 ---
 
@@ -224,9 +235,9 @@ Trainer can access:
 
 ## Developer Notes
 
-The project uses a reusable page configuration system inside `app.py`. Each module defines its database table, primary key, display columns, headings, search columns, and input fields. This allows one CRUD interface to work across multiple modules.
+The project uses a reusable page configuration system inside `services/page_config.py`. Each module defines its database table, primary key, display columns, headings, search columns, and input fields. This allows one CRUD interface to work across multiple modules.
 
-This makes the code easier to maintain because new record pages can be added by creating a new page configuration instead of rewriting the entire CRUD logic.
+This makes the code easier to maintain because new record pages can be added by creating a new page configuration instead of rewriting the entire CRUD logic. Validation, dropdown choices, and membership calculations are also separated into service modules so `app.py` can focus on the interface.
 
 ---
 
