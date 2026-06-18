@@ -7,6 +7,11 @@ from services.dropdown_options import (
     lookup_display_value as format_lookup_display_value,
 )
 from services.field_validation import parse_field_value
+from services.field_validation import (
+    CONTACT_PREFIX,
+    is_contact_input_allowed,
+    normalize_contact_number,
+)
 from services.membership import (
     add_months as calculate_expiry_date,
     normalize_member_row as normalize_member_display_row,
@@ -376,6 +381,8 @@ class RecordsPagesMixin:
             raw_value = ""
             if record is not None:
                 raw_value = "" if record[i] is None else str(record[i])
+                if data_type in ("contact", "account_contact") and raw_value:
+                    raw_value = normalize_contact_number(raw_value)
             elif is_new:
                 if column_name == "membership_registered":
                     raw_value = date.today().isoformat()
@@ -387,6 +394,8 @@ class RecordsPagesMixin:
                     raw_value = "0"
                 elif data_type == "date":
                     raw_value = date.today().isoformat()
+                elif data_type in ("contact", "account_contact"):
+                    raw_value = CONTACT_PREFIX
 
             widget = None
             if data_type in ("dropdown", "lookup"):
@@ -415,11 +424,17 @@ class RecordsPagesMixin:
                 widget.insert("1.0", raw_value)
                 widget.pack(fill="both", expand=True)
             else:
+                validatecommand = None
+                if data_type in ("contact", "account_contact"):
+                    validatecommand = (self.root.register(is_contact_input_allowed), "%P")
+
                 widget = tk.Entry(
                     field_frame,
                     bg=self.colors["input"],
                     bd=0,
-                    font=(self.font, 10)
+                    font=(self.font, 10),
+                    validate="key" if validatecommand else "none",
+                    validatecommand=validatecommand
                 )
                 widget.insert(0, raw_value)
                 widget.pack(fill="x", ipady=8)

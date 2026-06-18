@@ -37,7 +37,7 @@ Trainer account registration automatically creates one linked trainer profile, s
 - Search by ID or name
 - Sortable tables
 - Add, view, update, and delete records
-- Validation controls for required fields, dates, contacts, numbers, and dropdown selections
+- Validation controls for required fields, dates, `+63` contact numbers, numbers, and dropdown selections
 - Automatic SQLite database creation
 - Sample data seeding on first run
 

@@ -1,6 +1,50 @@
 from datetime import datetime
 
 
+CONTACT_PREFIX = "+63"
+CONTACT_LOCAL_DIGITS = 10
+CONTACT_TOTAL_LENGTH = len(CONTACT_PREFIX) + CONTACT_LOCAL_DIGITS
+
+
+def normalize_contact_number(raw_value):
+    value = raw_value.strip().replace(" ", "").replace("-", "")
+
+    if value.startswith(CONTACT_PREFIX):
+        return value
+
+    if value.startswith("09") and len(value) == 11 and value.isdigit():
+        return f"{CONTACT_PREFIX}{value[1:]}"
+
+    if value.startswith("9") and len(value) == 10 and value.isdigit():
+        return f"{CONTACT_PREFIX}{value}"
+
+    return value
+
+
+def is_valid_contact_number(raw_value):
+    value = normalize_contact_number(raw_value)
+    local_number = value[len(CONTACT_PREFIX):]
+    return (
+        value.startswith(CONTACT_PREFIX)
+        and len(value) == CONTACT_TOTAL_LENGTH
+        and local_number.isdigit()
+    )
+
+
+def is_contact_input_allowed(proposed_value):
+    if proposed_value == "":
+        return True
+
+    if not CONTACT_PREFIX.startswith(proposed_value) and not proposed_value.startswith(CONTACT_PREFIX):
+        return False
+
+    if proposed_value.startswith(CONTACT_PREFIX):
+        local_number = proposed_value[len(CONTACT_PREFIX):]
+        return (local_number == "" or local_number.isdigit()) and len(local_number) <= CONTACT_LOCAL_DIGITS
+
+    return True
+
+
 def parse_field_value(label_text, data_type, raw_value):
     if raw_value == "":
         return None
@@ -32,9 +76,10 @@ def parse_field_value(label_text, data_type, raw_value):
         return raw_value
 
     if data_type in ("contact", "account_contact"):
-        if not raw_value.isdigit() or len(raw_value) < 10:
-            raise ValueError(f"{label_text} must be a valid contact number.")
-        return raw_value
+        value = normalize_contact_number(raw_value)
+        if not is_valid_contact_number(value):
+            raise ValueError(f"{label_text} must use +63 followed by 10 digits.")
+        return value
 
     if data_type == "date":
         try:

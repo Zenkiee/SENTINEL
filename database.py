@@ -1,6 +1,8 @@
 import sqlite3
 import hashlib
 
+from services.field_validation import normalize_contact_number
+
 class Database:
     def hash_password(self, password):
         return hashlib.sha256(password.encode('utf-8')).hexdigest()
@@ -132,6 +134,8 @@ class Database:
             )
         """)
 
+        self.normalize_existing_contact_numbers(cursor)
+
         conn.commit()
         conn.close()
 
@@ -159,6 +163,23 @@ class Database:
             WHERE user_id IS NOT NULL
         """)
 
+    def normalize_existing_contact_numbers(self, cursor):
+        contact_targets = [
+            ("users", "user_id", "contact_number"),
+            ("members", "member_id", "contact_number"),
+            ("trainers", "trainer_id", "contact_number"),
+        ]
+
+        for table, pk, column in contact_targets:
+            cursor.execute(f"SELECT {pk}, {column} FROM {table} WHERE {column} IS NOT NULL")
+            for record_id, contact_number in cursor.fetchall():
+                normalized = normalize_contact_number(str(contact_number))
+                if normalized != contact_number:
+                    cursor.execute(
+                        f"UPDATE {table} SET {column} = ? WHERE {pk} = ?",
+                        (normalized, record_id)
+                    )
+
     def get_existing_ids(self, cursor, table, pk):
         cursor.execute(f"SELECT {pk} FROM {table}")
         return {row[0] for row in cursor.fetchall()}
@@ -173,7 +194,7 @@ class Database:
             cursor.execute("""
                 INSERT INTO users (username, email, contact_number, password_hash, role)
                 VALUES (?, ?, ?, ?, ?)
-            """, ("SentinelSuperAdmin-1", "admin@sentinel.com", "09123456789", pw_hash, "Admin"))
+            """, ("SentinelSuperAdmin-1", "admin@sentinel.com", "+639123456789", pw_hash, "Admin"))
             
         cursor.execute("SELECT COUNT(*) FROM members")
         if cursor.fetchone()[0] == 0:
@@ -185,9 +206,9 @@ class Database:
                     days_remaining
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, [
-                ("Carlos Miguel Ernacio", "Manila", "09123456789", "Monthly", "Expired", "Yes", "None", "2026-02-01", "1 Month", "2026-03-01", 0),
-                ("Jedidiah Jubal Tio", "Quezon City", "09987654321", "Student", "Expired", "Yes", "Asthma", "2026-01-01", "1 Month", "2026-02-01", 0),
-                ("Cris Jimenez", "Makati", "09111112222", "Annual", "Active", "Yes", "None", "2026-01-10", "12 Months", "2027-01-10", 218),
+                ("Carlos Miguel Ernacio", "Manila", "+639123456789", "Monthly", "Expired", "Yes", "None", "2026-02-01", "1 Month", "2026-03-01", 0),
+                ("Jedidiah Jubal Tio", "Quezon City", "+639987654321", "Student", "Expired", "Yes", "Asthma", "2026-01-01", "1 Month", "2026-02-01", 0),
+                ("Cris Jimenez", "Makati", "+639111112222", "Annual", "Active", "Yes", "None", "2026-01-10", "12 Months", "2027-01-10", 218),
             ])
         
         cursor.execute("SELECT COUNT(*) FROM trainers")
@@ -197,9 +218,9 @@ class Database:
                     trainer_name, email, contact_number, specialization, salary, hire_date, years_experience
                 ) VALUES (?, ?, ?, ?, ?, ?, ?)
             """, [
-                ("Coach Zach", "zach@email.com", "09170000001", "Strength", 25000, "2021-06-01", 5),
-                ("Coach Paul", "paul@email.com", "09170000002", "Yoga", 22000, "2023-03-15", 3),
-                ("Coach Marc", "marc@email.com", "09170000003", "Cardio", 24000, "2022-09-10", 4),
+                ("Coach Zach", "zach@email.com", "+639170000001", "Strength", 25000, "2021-06-01", 5),
+                ("Coach Paul", "paul@email.com", "+639170000002", "Yoga", 22000, "2023-03-15", 3),
+                ("Coach Marc", "marc@email.com", "+639170000003", "Cardio", 24000, "2022-09-10", 4),
             ])
 
         self.create_missing_trainer_profiles(cursor)
@@ -351,6 +372,8 @@ class Database:
 
     def register_user(self, username, full_name, email, contact, password_hash, role="Trainer"):
         try:
+            contact = normalize_contact_number(contact)
+
             conn = self.connect()
             cursor = conn.cursor()
             

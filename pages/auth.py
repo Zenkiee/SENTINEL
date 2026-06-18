@@ -2,6 +2,12 @@ import hashlib
 import tkinter as tk
 from tkinter import ttk, messagebox
 
+from services.field_validation import (
+    CONTACT_PREFIX,
+    is_contact_input_allowed,
+    is_valid_contact_number,
+    normalize_contact_number,
+)
 from ui_components import RoundedFrame
 
 
@@ -149,13 +155,19 @@ class AuthPagesMixin:
             font=(self.font, 27, "bold")
         ).pack(anchor="w", pady=(0, 20))
 
-        vcmd_num = self.root.register(self.validate_numbers_only)
         vcmd_text = self.root.register(self.validate_no_special_chars)
+        vcmd_contact = self.root.register(is_contact_input_allowed)
 
         self.reg_name = self.form_input(card.inner, "Full Name", validation_cmd=vcmd_text)
         self.reg_user = self.form_input(card.inner, "Username", validation_cmd=vcmd_text)
         self.reg_email = self.form_input(card.inner, "Email", validation_cmd=vcmd_text)
-        self.reg_contact = self.form_input(card.inner, "Contact Number", validation_cmd=vcmd_num)
+        self.reg_contact = self.form_input(
+            card.inner,
+            "Contact Number",
+            validation_cmd=vcmd_contact,
+            validation_mode="%P",
+            default_value=CONTACT_PREFIX,
+        )
         self.reg_password = self.form_input(card.inner, "Password", show="*")
         self.reg_confirm = self.form_input(card.inner, "Confirm Password", show="*")
 
@@ -193,9 +205,11 @@ class AuthPagesMixin:
             messagebox.showwarning("Registration Error", "Please provide a valid email format.")
             return
 
-        if not contact.isdigit() or len(contact) < 10:
-            messagebox.showwarning("Registration Error", "Please provide a valid contact number.")
+        if not is_valid_contact_number(contact):
+            messagebox.showwarning("Registration Error", "Contact number must use +63 followed by 10 digits.")
             return
+
+        contact = normalize_contact_number(contact)
 
         if password != confirm:
             messagebox.showwarning("Registration Error", "Passwords do not match.")
@@ -215,7 +229,15 @@ class AuthPagesMixin:
             messagebox.showerror("Registration Failed", msg)
     
 
-    def form_input(self, parent, label, show=None, validation_cmd=None):
+    def form_input(
+        self,
+        parent,
+        label,
+        show=None,
+        validation_cmd=None,
+        validation_mode="%S",
+        default_value="",
+    ):
         tk.Label(
             parent,
             text=label,
@@ -234,8 +256,10 @@ class AuthPagesMixin:
             font=(self.font, 12),
             show=show,
             validate="key" if validation_cmd else "none",
-            validatecommand=(validation_cmd, '%S') if validation_cmd else None
+            validatecommand=(validation_cmd, validation_mode) if validation_cmd else None
         )
+        if default_value:
+            entry.insert(0, default_value)
         entry.pack(fill="x", ipady=11)
         return entry
 
