@@ -52,14 +52,19 @@ class Database:
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS trainers (
                 trainer_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
                 trainer_name TEXT NOT NULL,
                 email TEXT,
+                contact_number TEXT,
                 specialization TEXT,
                 salary REAL,
                 hire_date TEXT,
-                years_experience INTEGER
+                years_experience INTEGER,
+                FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE SET NULL
             )
         """)
+
+        self.migrate_trainers_account_columns(cursor)
 
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS class_sessions (
@@ -139,6 +144,21 @@ class Database:
         elif "days_remaining" not in columns:
             cursor.execute("ALTER TABLE members ADD COLUMN days_remaining INTEGER")
 
+    def migrate_trainers_account_columns(self, cursor):
+        cursor.execute("PRAGMA table_info(trainers)")
+        columns = [column[1] for column in cursor.fetchall()]
+
+        if "user_id" not in columns:
+            cursor.execute("ALTER TABLE trainers ADD COLUMN user_id INTEGER REFERENCES users(user_id) ON DELETE SET NULL")
+        if "contact_number" not in columns:
+            cursor.execute("ALTER TABLE trainers ADD COLUMN contact_number TEXT")
+
+        cursor.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_trainers_user_id
+            ON trainers(user_id)
+            WHERE user_id IS NOT NULL
+        """)
+
     def get_existing_ids(self, cursor, table, pk):
         cursor.execute(f"SELECT {pk} FROM {table}")
         return {row[0] for row in cursor.fetchall()}
@@ -174,13 +194,15 @@ class Database:
         if cursor.fetchone()[0] == 0:
             cursor.executemany("""
                 INSERT INTO trainers (
-                    trainer_name, email, specialization, salary, hire_date, years_experience
-                ) VALUES (?, ?, ?, ?, ?, ?)
+                    trainer_name, email, contact_number, specialization, salary, hire_date, years_experience
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
             """, [
-                ("Coach Zach", "zach@email.com", "Strength", 25000, "2021-06-01", 5),
-                ("Coach Paul", "paul@email.com", "Yoga", 22000, "2023-03-15", 3),
-                ("Coach Marc", "marc@email.com", "Cardio", 24000, "2022-09-10", 4),
+                ("Coach Zach", "zach@email.com", "09170000001", "Strength", 25000, "2021-06-01", 5),
+                ("Coach Paul", "paul@email.com", "09170000002", "Yoga", 22000, "2023-03-15", 3),
+                ("Coach Marc", "marc@email.com", "09170000003", "Cardio", 24000, "2022-09-10", 4),
             ])
+
+        self.create_missing_trainer_profiles(cursor)
 
         cursor.execute("SELECT COUNT(*) FROM class_sessions")
         if cursor.fetchone()[0] == 0:
@@ -291,7 +313,43 @@ class Database:
         conn.close()
         return row
 
-    def register_user(self, username, email, contact, password_hash, role="Trainer"):
+    def create_missing_trainer_profiles(self, cursor):
+        cursor.execute("""
+            SELECT user_id, username, email, contact_number
+            FROM users
+            WHERE role = 'Trainer'
+              AND user_id NOT IN (
+                  SELECT user_id FROM trainers WHERE user_id IS NOT NULL
+              )
+        """)
+        missing_trainers = cursor.fetchall()
+
+        for user_id, username, email, contact_number in missing_trainers:
+            cursor.execute("""
+                INSERT INTO trainers (
+                    user_id, trainer_name, email, contact_number,
+                    specialization, salary, hire_date, years_experience
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                user_id,
+                username,
+                email,
+                contact_number,
+                "General Fitness",
+                0,
+                "",
+                0,
+            ))
+
+    def get_trainer_id_for_user(self, user_id):
+        conn = self.connect()
+        cursor = conn.cursor()
+        cursor.execute("SELECT trainer_id FROM trainers WHERE user_id = ?", (user_id,))
+        row = cursor.fetchone()
+        conn.close()
+        return row[0] if row else None
+
+    def register_user(self, username, full_name, email, contact, password_hash, role="Trainer"):
         try:
             conn = self.connect()
             cursor = conn.cursor()
@@ -317,6 +375,25 @@ class Database:
                 INSERT INTO users (username, email, contact_number, password_hash, role)
                 VALUES (?, ?, ?, ?, ?)
             """, (username, email, contact, password_hash, role))
+
+            user_id = cursor.lastrowid
+
+            if role == "Trainer":
+                cursor.execute("""
+                    INSERT INTO trainers (
+                        user_id, trainer_name, email, contact_number,
+                        specialization, salary, hire_date, years_experience
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    user_id,
+                    full_name,
+                    email,
+                    contact,
+                    "General Fitness",
+                    0,
+                    "",
+                    0,
+                ))
             
             conn.commit()
             conn.close()
@@ -324,6 +401,28 @@ class Database:
             
         except Exception as e:
             return False, str(e)
+
+    def fetch_lookup_options(self, table, id_column, label_column):
+        conn = self.connect()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            f"SELECT {id_column}, {label_column} FROM {table} ORDER BY {label_column}"
+        )
+        rows = cursor.fetchall()
+
+        conn.close()
+        return [f"{row[0]} - {row[1]}" for row in rows]
+
+    def fetch_trainer_names(self):
+        conn = self.connect()
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT trainer_name FROM trainers ORDER BY trainer_name")
+        rows = cursor.fetchall()
+
+        conn.close()
+        return [row[0] for row in rows]
     
     def fetch_records(self, table, columns, search_term="", search_columns=None):
         conn = self.connect()

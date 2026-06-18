@@ -19,6 +19,8 @@ class SentinelApp:
         self.db = Database()
 
         self.current_user = ""
+        self.current_user_id = None
+        self.current_trainer_id = None
         self.current_role = "Admin"
         self.current_page = "Dashboard"
 
@@ -179,7 +181,7 @@ class SentinelApp:
         self.root.configure(bg=self.colors["app_bg"])
 
         shell = tk.Frame(self.root, bg=self.colors["app_bg"])
-        shell.pack(expand=True, fill="both", padx=70, pady=55)
+        shell.pack(expand=True, fill="both", padx=70, pady=40)
 
         left = tk.Frame(shell, bg=self.colors["app_bg"])
         left.pack(side="left", expand=True, fill="both", padx=(0, 35))
@@ -294,7 +296,7 @@ class SentinelApp:
         self.root.configure(bg=self.colors["app_bg"])
 
         shell = tk.Frame(self.root, bg=self.colors["app_bg"])
-        shell.pack(expand=True, fill="both", padx=70, pady=55)
+        shell.pack(expand=True, fill="both", padx=70, pady=40)
 
         card = RoundedFrame(
             shell,
@@ -304,7 +306,7 @@ class SentinelApp:
             padding=34
         )
         card.pack(expand=True)
-        card.configure(width=455, height=650)
+        card.configure(width=455, height=760)
         card.pack_propagate(False)
 
         tk.Label(
@@ -318,6 +320,7 @@ class SentinelApp:
         vcmd_num = self.root.register(self.validate_numbers_only)
         vcmd_text = self.root.register(self.validate_no_special_chars)
 
+        self.reg_name = self.form_input(card.inner, "Full Name", validation_cmd=vcmd_text)
         self.reg_user = self.form_input(card.inner, "Username", validation_cmd=vcmd_text)
         self.reg_email = self.form_input(card.inner, "Email", validation_cmd=vcmd_text)
         self.reg_contact = self.form_input(card.inner, "Contact Number", validation_cmd=vcmd_num)
@@ -342,14 +345,23 @@ class SentinelApp:
         signin_link.bind("<Button-1>", lambda e: self.show_login())
 
     def register_account(self):
+        full_name = self.reg_name.get().strip()
         username = self.reg_user.get().strip()
         email = self.reg_email.get().strip()
         contact = self.reg_contact.get().strip()
         password = self.reg_password.get().strip()
         confirm = self.reg_confirm.get().strip()
 
-        if not all([username, email, contact, password, confirm]):
+        if not all([full_name, username, email, contact, password, confirm]):
             messagebox.showwarning("Registration Error", "All fields are required.")
+            return
+
+        if "@" not in email or "." not in email:
+            messagebox.showwarning("Registration Error", "Please provide a valid email format.")
+            return
+
+        if not contact.isdigit() or len(contact) < 10:
+            messagebox.showwarning("Registration Error", "Please provide a valid contact number.")
             return
 
         if password != confirm:
@@ -358,14 +370,13 @@ class SentinelApp:
         
         pw_hash = hashlib.sha256(password.encode()).hexdigest()
         
-        success, msg = self.db.register_user(username, email, contact, pw_hash, role="Trainer")
-
-        if "@" not in email or "." not in email:
-            messagebox.showwarning("Registration Error", "Please provide a valid email format.")
-            return
+        success, msg = self.db.register_user(username, full_name, email, contact, pw_hash, role="Trainer")
 
         if success:
-            messagebox.showinfo("Success", "Account created! You can now log in.")
+            messagebox.showinfo(
+                "Success",
+                "Account created! A linked trainer profile was also added."
+            )
             self.show_login()
         else:
             messagebox.showerror("Registration Failed", msg)
@@ -409,8 +420,15 @@ class SentinelApp:
             input_hash = hashlib.sha256(password.encode()).hexdigest()
 
             if stored_hash == input_hash:
+                selected_role = self.role_var.get()
+                if user[5] != selected_role:
+                    messagebox.showerror("Login Failed", f"This account is registered as {user[5]}.")
+                    return
+
+                self.current_user_id = user[0]
                 self.current_user = user[1]
                 self.current_role = user[5] 
+                self.current_trainer_id = self.db.get_trainer_id_for_user(user[0])
                 self.current_page = "Dashboard"
                 self.show_main_app()
             else:
@@ -541,6 +559,7 @@ class SentinelApp:
         else:
             menu_items = [
                 "Dashboard",
+                "My Profile",
                 "Members",
                 "Class Sessions",
                 "Attendance",
@@ -625,6 +644,8 @@ class SentinelApp:
                 self.show_admin_dashboard()
             else:
                 self.show_trainer_dashboard()
+        elif page == "My Profile":
+            self.show_my_profile()
         elif page == "Reports":
             self.show_reports()
         else:
@@ -635,6 +656,8 @@ class SentinelApp:
 
         if confirm:
             self.current_user = ""
+            self.current_user_id = None
+            self.current_trainer_id = None
             self.current_role = "Admin"
             self.current_page = "Dashboard"
             self.show_login()
@@ -670,7 +693,7 @@ class SentinelApp:
                 "fields": [
                     ("Member Name", "member_name", "text"),
                     ("Residence Address", "residence_address", "text"),
-                    ("Contact Number", "contact_number", "text"),
+                    ("Contact Number", "contact_number", "contact"),
                     ("Membership Type", "membership_type", "dropdown"),
                     ("Medical Clearance", "medical_clearance", "dropdown"),
                     ("Health Issues", "health_issues", "multiline"),
@@ -688,30 +711,33 @@ class SentinelApp:
                     "trainer_id",
                     "trainer_name",
                     "email",
+                    "contact_number",
                     "specialization",
-                    "salary",
                     "years_experience",
                 ],
                 "headings": [
                     "Trainer ID",
                     "Name",
                     "Email",
+                    "Contact",
                     "Specialization",
-                    "Salary",
                     "Experience",
                 ],
                 "search_columns": [
                     "trainer_id",
                     "trainer_name",
                     "email",
+                    "contact_number",
                     "specialization",
                 ],
                 "fields": [
-                    ("Trainer Name", "trainer_name", "text"),
-                    ("Email", "email", "text"),
-                    ("Specialization", "specialization", "text"),
+                    ("User Account ID", "user_id", "readonly"),
+                    ("Trainer Name", "trainer_name", "account"),
+                    ("Email", "email", "account_email"),
+                    ("Contact Number", "contact_number", "account_contact"),
+                    ("Specialization", "specialization", "dropdown"),
                     ("Salary", "salary", "float"),
-                    ("Hire Date", "hire_date", "text"),
+                    ("Hire Date", "hire_date", "date"),
                     ("Years Experience", "years_experience", "int"),
                 ],
             },
@@ -742,7 +768,7 @@ class SentinelApp:
                     ("Class Name", "class_name", "text"),
                     ("Schedule", "schedule", "text"),
                     ("Capacity", "capacity", "int"),
-                    ("Assigned Trainer", "assigned_trainer", "text"),
+                    ("Assigned Trainer", "assigned_trainer", "dropdown"),
                 ],
             },
             "Class Enrollment": {
@@ -767,9 +793,9 @@ class SentinelApp:
                     "enrolled_date",
                 ],
                 "fields": [
-                    ("Member ID", "member_id", "int"),
-                    ("Session ID", "session_id", "int"),
-                    ("Enrolled Date", "enrolled_date", "text"),
+                    ("Member ID", "member_id", "lookup"),
+                    ("Session ID", "session_id", "lookup"),
+                    ("Enrolled Date", "enrolled_date", "date"),
                 ],
             },
             "Attendance": {
@@ -794,8 +820,8 @@ class SentinelApp:
                     "check_in_time",
                 ],
                 "fields": [
-                    ("Member ID", "member_id", "int"),
-                    ("Session ID", "session_id", "int"),
+                    ("Member ID", "member_id", "lookup"),
+                    ("Session ID", "session_id", "lookup"),
                     ("Check-In Time", "check_in_time", "text"),
                 ],
             },
@@ -826,9 +852,9 @@ class SentinelApp:
                 ],
                 "fields": [
                     ("Equipment Name", "equipment_name", "text"),
-                    ("Category", "category", "text"),
-                    ("Status", "status", "text"),
-                    ("Purchase Date", "purchase_date", "text"),
+                    ("Category", "category", "dropdown"),
+                    ("Status", "status", "dropdown"),
+                    ("Purchase Date", "purchase_date", "date"),
                     ("Purchase Cost", "purchase_cost", "float"),
                     ("Age of Equipment", "age_of_equipment", "text"),
                 ],
@@ -855,9 +881,9 @@ class SentinelApp:
                     "log_date",
                 ],
                 "fields": [
-                    ("Equipment ID", "equipment_id", "int"),
+                    ("Equipment ID", "equipment_id", "lookup"),
                     ("Action Taken", "action_taken", "text"),
-                    ("Log Date", "log_date", "text"),
+                    ("Log Date", "log_date", "date"),
                 ],
             },
             "Transactions": {
@@ -886,10 +912,10 @@ class SentinelApp:
                     "payment_type",
                 ],
                 "fields": [
-                    ("Member ID", "member_id", "int"),
+                    ("Member ID", "member_id", "lookup"),
                     ("Amount", "amount", "float"),
-                    ("Transaction Date", "transaction_date", "text"),
-                    ("Payment Type", "payment_type", "text"),
+                    ("Transaction Date", "transaction_date", "date"),
+                    ("Payment Type", "payment_type", "dropdown"),
                     ("Total Amount", "total_amount", "float"),
                 ],
             },
@@ -1040,6 +1066,104 @@ class SentinelApp:
                 search_entry.get().strip()
             )
         ).pack(side="right", padx=(12, 0))
+
+    def show_my_profile(self):
+        self.clear_content()
+
+        self.hero_section(
+            "My Trainer Profile",
+            "Your account details are linked to one trainer record. Finish the remaining professional details here."
+        )
+
+        if self.current_trainer_id is None:
+            tk.Label(
+                self.content,
+                text="No linked trainer profile was found for this account.",
+                bg=self.colors["app_bg"],
+                fg=self.colors["red"],
+                font=(self.font, 11, "bold")
+            ).pack(anchor="w", padx=30, pady=(0, 12))
+            return
+
+        profile = self.db.fetch_one(
+            "trainers",
+            "trainer_id",
+            self.current_trainer_id,
+            [
+                "trainer_id",
+                "trainer_name",
+                "email",
+                "contact_number",
+                "specialization",
+                "salary",
+                "hire_date",
+                "years_experience",
+            ]
+        )
+
+        if profile is None:
+            tk.Label(
+                self.content,
+                text="Your trainer profile could not be loaded.",
+                bg=self.colors["app_bg"],
+                fg=self.colors["red"],
+                font=(self.font, 11, "bold")
+            ).pack(anchor="w", padx=30, pady=(0, 12))
+            return
+
+        details = [
+            ("Trainer ID", profile[0]),
+            ("Name", profile[1]),
+            ("Email", profile[2]),
+            ("Contact", profile[3]),
+            ("Specialization", profile[4] or "Not set"),
+            ("Salary", profile[5] if profile[5] not in (None, "") else "Not set"),
+            ("Hire Date", profile[6] or "Not set"),
+            ("Experience", f"{profile[7]} years" if profile[7] not in (None, "") else "Not set"),
+        ]
+
+        grid = tk.Frame(self.content, bg=self.colors["app_bg"])
+        grid.pack(fill="x", padx=30, pady=(0, 18))
+
+        for i, (label, value) in enumerate(details):
+            card = RoundedFrame(
+                grid,
+                bg="white",
+                parent_bg=self.colors["app_bg"],
+                radius=28,
+                padding=18
+            )
+            card.grid(row=i // 4, column=i % 4, padx=8, pady=8, sticky="nsew")
+
+            tk.Label(
+                card.inner,
+                text=label,
+                bg="white",
+                fg=self.colors["muted"],
+                font=(self.font, 10, "bold")
+            ).pack(anchor="w")
+
+            tk.Label(
+                card.inner,
+                text=str(value),
+                bg="white",
+                fg=self.colors["text"],
+                font=(self.font, 13, "bold"),
+                wraplength=180,
+                justify="left"
+            ).pack(anchor="w", pady=(6, 0))
+
+        for i in range(4):
+            grid.grid_columnconfigure(i, weight=1)
+
+        action_row = tk.Frame(self.content, bg=self.colors["app_bg"])
+        action_row.pack(fill="x", padx=30, pady=(4, 24))
+
+        self.apple_button(
+            action_row,
+            "Update Profile",
+            command=lambda: self.open_record_window("Trainers", record_id=self.current_trainer_id)
+        ).pack(side="left")
 
     def hero_section(self, title, subtitle):
         hero = RoundedFrame(
@@ -1444,15 +1568,20 @@ class SentinelApp:
 
     def open_record_window(self, page_name, record_id=None, is_new=False):
         config = self.get_page_config(page_name)
+        self.record_window_config = config
         record = None
+        field_columns = [field[1] for field in config["fields"]]
+        record_values = {}
 
         if not is_new and record_id is not None:
             record = self.db.fetch_one(
                 config["table"],
                 config["pk"],
                 record_id,
-                [field[1] for field in config["fields"]]
+                field_columns
             )
+            if record is not None:
+                record_values = dict(zip(field_columns, record))
 
         record_window = tk.Toplevel(self.root)
         record_window.title(f"{'Add' if is_new else 'Details'} - {page_name}")
@@ -1480,6 +1609,14 @@ class SentinelApp:
         self.record_window_id = record_id
         self.record_window_save_button = None
         self.record_window_toggle_button = None
+        self.record_window_locked_fields = set()
+
+        if page_name == "Trainers" and record_values.get("user_id"):
+            self.record_window_locked_fields.update([
+                "trainer_name",
+                "email",
+                "contact_number",
+            ])
 
         for i, (label_text, column_name, data_type) in enumerate(config["fields"]):
             row = i // 2
@@ -1508,16 +1645,23 @@ class SentinelApp:
                     raw_value = "Active"
                 elif column_name == "days_remaining":
                     raw_value = "0"
+                elif data_type == "date":
+                    raw_value = date.today().isoformat()
 
             widget = None
-            if data_type == "dropdown":
+            if data_type in ("dropdown", "lookup"):
+                options = self.get_dropdown_options(page_name, column_name)
                 widget = ttk.Combobox(
                     field_frame,
-                    values=self.get_dropdown_options(page_name, column_name),
+                    values=options,
                     state="readonly",
                     font=(self.font, 10)
                 )
-                widget.set(raw_value or widget["values"][0] if widget["values"] else "")
+                if data_type == "lookup" and raw_value:
+                    display_value = self.lookup_display_value(options, raw_value)
+                    widget.set(display_value)
+                else:
+                    widget.set(raw_value or widget["values"][0] if widget["values"] else "")
                 widget.pack(fill="x", ipady=8)
             elif data_type == "multiline":
                 widget = tk.Text(
@@ -1540,7 +1684,9 @@ class SentinelApp:
                 widget.insert(0, raw_value)
                 widget.pack(fill="x", ipady=8)
 
-            if not is_new:
+            locked_field = column_name in self.record_window_locked_fields
+
+            if not is_new or locked_field:
                 if isinstance(widget, tk.Text):
                     widget.config(state="disabled")
                 elif isinstance(widget, ttk.Combobox):
@@ -1590,11 +1736,12 @@ class SentinelApp:
             )
             self.record_window_toggle_button.pack(side="right", padx=(0, 8))
 
-            self.danger_button(
-                action_frame,
-                "Delete",
-                command=lambda: self.delete_record_window(record_window)
-            ).pack(side="right")
+            if not (page_name == "Trainers" and record_values.get("user_id")):
+                self.danger_button(
+                    action_frame,
+                    "Delete",
+                    command=lambda: self.delete_record_window(record_window)
+                ).pack(side="right")
 
             self.update_record_window_save_state()
 
@@ -1611,7 +1758,37 @@ class SentinelApp:
                 return ["1 Month", "3 Months", "6 Months", "12 Months"]
             if column_name == "medical_clearance":
                 return ["Yes", "No"]
+        if page_name == "Trainers":
+            if column_name == "specialization":
+                return ["General Fitness", "Strength", "Cardio", "Yoga", "CrossFit", "Nutrition"]
+        if page_name == "Class Sessions":
+            if column_name == "assigned_trainer":
+                return self.db.fetch_trainer_names()
+        if page_name in ("Class Enrollment", "Attendance", "Transactions"):
+            if column_name == "member_id":
+                return self.db.fetch_lookup_options("members", "member_id", "member_name")
+        if page_name in ("Class Enrollment", "Attendance"):
+            if column_name == "session_id":
+                return self.db.fetch_lookup_options("class_sessions", "session_id", "class_name")
+        if page_name == "Equipment":
+            if column_name == "category":
+                return ["Cardio", "Strength", "Flexibility", "Free Weights", "Machine", "Accessory"]
+            if column_name == "status":
+                return ["Available", "Under Maintenance", "Unavailable", "Retired"]
+        if page_name == "Equipment Logs":
+            if column_name == "equipment_id":
+                return self.db.fetch_lookup_options("equipment", "equipment_id", "equipment_name")
+        if page_name == "Transactions":
+            if column_name == "payment_type":
+                return ["Cash", "GCash", "Card", "Bank Transfer"]
         return []
+
+    def lookup_display_value(self, options, raw_value):
+        raw_text = str(raw_value)
+        for option in options:
+            if option.split(" - ", 1)[0] == raw_text:
+                return option
+        return raw_text
 
     def update_member_computed_fields(self):
         if self.record_window_page != "Members":
@@ -1668,7 +1845,10 @@ class SentinelApp:
         if self.record_window_editing:
             self.record_window_toggle_button.config(text="Save")
             for column_name, widget in self.record_window_widgets.items():
-                if self.record_window_fields[column_name] == "readonly":
+                if (
+                    self.record_window_fields[column_name] == "readonly"
+                    or column_name in self.record_window_locked_fields
+                ):
                     continue
                 if isinstance(widget, tk.Text):
                     widget.config(state="normal")
@@ -1705,7 +1885,7 @@ class SentinelApp:
         return widget.get().strip()
 
     def collect_window_values(self):
-        config = self.current_config
+        config = self.record_window_config
         columns = []
         values = []
 
@@ -1715,6 +1895,11 @@ class SentinelApp:
 
             if raw_value == "":
                 value = None
+            elif data_type == "lookup":
+                try:
+                    value = int(raw_value.split(" - ", 1)[0])
+                except ValueError:
+                    raise ValueError(f"{label_text} must use a valid selected record.")
             elif data_type == "int":
                 try:
                     value = int(raw_value)
@@ -1725,13 +1910,29 @@ class SentinelApp:
                     value = float(raw_value)
                 except ValueError:
                     raise ValueError(f"{label_text} must be a number.")
+                if value < 0:
+                    raise ValueError(f"{label_text} cannot be negative.")
+            elif data_type in ("email", "account_email"):
+                if "@" not in raw_value or "." not in raw_value:
+                    raise ValueError(f"{label_text} must be a valid email address.")
+                value = raw_value
+            elif data_type in ("contact", "account_contact"):
+                if not raw_value.isdigit() or len(raw_value) < 10:
+                    raise ValueError(f"{label_text} must be a valid contact number.")
+                value = raw_value
+            elif data_type == "date":
+                try:
+                    datetime.strptime(raw_value, "%Y-%m-%d")
+                except ValueError:
+                    raise ValueError(f"{label_text} must use YYYY-MM-DD format.")
+                value = raw_value
             else:
                 value = raw_value
 
             columns.append(column_name)
             values.append(value)
 
-        if self.current_page == "Members":
+        if self.record_window_page == "Members":
             columns, values = self.prepare_member_values(columns, values)
 
         return columns, values
@@ -1776,21 +1977,24 @@ class SentinelApp:
             columns, values = self.collect_window_values()
             if is_new:
                 self.db.insert_record(
-                    self.current_config["table"],
+                    self.record_window_config["table"],
                     columns,
                     values
                 )
             else:
                 self.db.update_record(
-                    self.current_config["table"],
-                    self.current_config["pk"],
+                    self.record_window_config["table"],
+                    self.record_window_config["pk"],
                     self.record_window_id,
                     columns,
                     values
                 )
 
-            self.load_table(self.search_entry.get().strip())
             window.destroy()
+            if self.current_page == "My Profile":
+                self.show_my_profile()
+            else:
+                self.load_table(self.search_entry.get().strip())
         except Exception as error:
             messagebox.showerror("Save Failed", str(error))
 
@@ -1804,8 +2008,8 @@ class SentinelApp:
             return
 
         self.db.delete_record(
-            self.current_config["table"],
-            self.current_config["pk"],
+            self.record_window_config["table"],
+            self.record_window_config["pk"],
             self.record_window_id
         )
 
