@@ -495,9 +495,11 @@ class Database:
             f"INSERT INTO {table} ({column_text}) VALUES ({placeholders})",
             values
         )
+        record_id = cursor.lastrowid
 
         conn.commit()
         conn.close()
+        return record_id
 
     def update_record(self, table, pk, record_id, columns, values):
         conn = self.connect()

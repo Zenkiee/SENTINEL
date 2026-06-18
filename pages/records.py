@@ -636,11 +636,39 @@ class RecordsPagesMixin:
         return prepare_membership_values(columns, values)
 
 
+    def _record_label(self):
+        page_name = getattr(self, "record_window_page", self.current_page)
+        if page_name.endswith("s"):
+            return page_name[:-1]
+        return page_name
+
+
+    def _show_save_success(self, is_new, record_id=None):
+        action = "added" if is_new else "updated"
+        record_label = self._record_label()
+
+        detail = f"{record_label} was {action} successfully."
+        if record_id is not None:
+            detail += f"\nRecord ID: {record_id}"
+
+        messagebox.showinfo("Save Successful", detail)
+
+
+    def _show_delete_success(self):
+        record_label = self._record_label()
+        detail = f"{record_label} was deleted successfully."
+        if self.record_window_id is not None:
+            detail += f"\nRecord ID: {self.record_window_id}"
+
+        messagebox.showinfo("Delete Successful", detail)
+
+
     def save_window_record(self, window, is_new=False):
         try:
             columns, values = self.collect_window_values()
+            saved_record_id = self.record_window_id
             if is_new:
-                self.db.insert_record(
+                saved_record_id = self.db.insert_record(
                     self.record_window_config["table"],
                     columns,
                     values
@@ -659,6 +687,7 @@ class RecordsPagesMixin:
                 self.show_my_profile()
             else:
                 self.load_table(self.search_entry.get().strip())
+            self._show_save_success(is_new, saved_record_id)
         except Exception as error:
             messagebox.showerror("Save Failed", str(error))
 
@@ -680,6 +709,7 @@ class RecordsPagesMixin:
 
         self.load_table(self.search_entry.get().strip())
         window.destroy()
+        self._show_delete_success()
 
 
     def on_row_selected(self, event):
