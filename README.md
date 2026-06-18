@@ -59,10 +59,11 @@ No external Python packages are required.
 ```text
 SENTINEL-main/
 ├── main.py              # Starts the application
-├── app.py               # Main GUI coordinator, pages, navigation, and CRUD windows
+├── app.py               # Main GUI coordinator, navigation, shared buttons, and app shell
 ├── database.py          # SQLite database connection, tables, and data functions
 ├── ui_components.py     # Reusable UI components such as rounded frames
 ├── config.py            # App title, window size, fonts, and color palette
+├── pages/               # Login, dashboards, records, and reports page modules
 ├── services/            # Page configs, dropdown options, validation, and membership logic
 ├── docs/                # Presentation, navigation, and design documentation
 ├── README.md            # Project documentation
@@ -150,7 +151,7 @@ This is the entry point of the program. It creates the main Tkinter window and s
 
 ### `app.py`
 
-This contains the main application class, login screen, dashboards, sidebar navigation, tables, search functions, record windows, and report pages.
+This contains the main application class, sidebar navigation, topbar, shared buttons, and app shell. Page-specific screens are mixed in from the `pages/` folder.
 
 ### `database.py`
 
@@ -163,6 +164,15 @@ This file contains reusable interface components. The main component is `Rounded
 ### `config.py`
 
 This file stores the app title, window size, minimum window size, font, and color palette.
+
+### `pages/`
+
+This folder separates the main screens by responsibility:
+
+- `auth.py` contains login, registration, and account sign-in logic.
+- `dashboard.py` contains Admin dashboard, Trainer dashboard, profile, and shared dashboard widgets.
+- `records.py` contains reusable table, search, sort, CRUD, and record-window logic.
+- `reports.py` contains the reports menu and report navigation actions.
 
 ### `services/`
 
