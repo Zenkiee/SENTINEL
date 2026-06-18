@@ -24,23 +24,23 @@ class ReportsPagesMixin:
         for title, desc, command in reports:
             card = RoundedFrame(
                 self.content,
-                bg="white",
+                bg=self.colors["card"],
                 parent_bg=self.colors["app_bg"],
                 radius=28,
                 padding=22,
                 hoverable=True,
-                hover_bg="#F7F9FF",
-                hover_border="#C5D8FF"
+                hover_bg=self.colors["card_hover"],
+                hover_border=self.colors["card_hover_border"]
             )
             card.pack(fill="x", padx=30, pady=8)
 
-            text = tk.Frame(card.inner, bg="white")
+            text = tk.Frame(card.inner, bg=self.colors["card"])
             text.pack(side="left", fill="x", expand=True)
 
             tk.Label(
                 text,
                 text=title,
-                bg="white",
+                bg=self.colors["card"],
                 fg=self.colors["text"],
                 font=(self.font, 13, "bold")
             ).pack(anchor="w")
@@ -48,7 +48,7 @@ class ReportsPagesMixin:
             tk.Label(
                 text,
                 text=desc,
-                bg="white",
+                bg=self.colors["card"],
                 fg=self.colors["muted"],
                 font=(self.font, 10)
             ).pack(anchor="w", pady=(3, 0))

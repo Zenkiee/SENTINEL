@@ -21,7 +21,7 @@ def normalize_member_row(row):
         return row
 
 
-def prepare_member_values(columns, values):
+def prepare_member_values(columns, values, is_new=True):
     if "membership_duration" not in columns:
         return columns, values
 
@@ -31,26 +31,32 @@ def prepare_member_values(columns, values):
     status_index = columns.index("membership_status")
     days_index = columns.index("days_remaining")
 
-    raw_duration = values[duration_index] or "1 Month"
-    duration_parts = raw_duration.split()
-    try:
-        month_count = int(duration_parts[0])
-    except (ValueError, IndexError):
-        month_count = 1
-
-    registration_date = date.today()
-    if values[registered_index]:
+    if is_new:
+        raw_duration = values[duration_index] or "1 Month"
         try:
-            registration_date = datetime.strptime(values[registered_index], "%Y-%m-%d").date()
-        except ValueError:
-            registration_date = date.today()
+            month_count = int(raw_duration.split()[0])
+        except (ValueError, IndexError):
+            month_count = 1
 
-    expiry_date = add_months(registration_date, month_count)
+        registration_date = date.today()
+        if values[registered_index]:
+            try:
+                registration_date = datetime.strptime(values[registered_index], "%Y-%m-%d").date()
+            except ValueError:
+                registration_date = date.today()
+
+        expiry_date = add_months(registration_date, month_count)
+        values[registered_index] = registration_date.isoformat()
+        values[expiry_index] = expiry_date.isoformat()
+    else:
+        try:
+            expiry_date = datetime.strptime(values[expiry_index], "%Y-%m-%d").date()
+        except Exception:
+            expiry_date = date.today()
+
     status = "Active" if date.today() <= expiry_date else "Expired"
     days_remaining = max(0, (expiry_date - date.today()).days)
 
-    values[registered_index] = registration_date.isoformat()
-    values[expiry_index] = expiry_date.isoformat()
     values[status_index] = status
     values[days_index] = days_remaining
 

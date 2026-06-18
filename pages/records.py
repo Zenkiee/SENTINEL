@@ -31,8 +31,9 @@ class RecordsPagesMixin:
 
         toolbar = RoundedFrame(
             self.content,
-            bg="white",
+            bg=self.colors["card"],
             parent_bg=self.colors["app_bg"],
+            border_color=self.colors["line"],
             radius=28,
             padding=16
         )
@@ -41,6 +42,8 @@ class RecordsPagesMixin:
         self.search_entry = tk.Entry(
             toolbar.inner,
             bg=self.colors["input"],
+            fg=self.colors["input_text"],
+            insertbackground=self.colors["text"],
             bd=0,
             font=(self.font, 11)
         )
@@ -65,11 +68,12 @@ class RecordsPagesMixin:
             command=self.clear_search
         ).pack(side="left", padx=(6, 0))
 
-        self.apple_button(
-            toolbar.inner,
-            "Add",
-            command=lambda: self.open_record_window(page_name, is_new=True)
-        ).pack(side="right")
+        if self.current_role == "Admin":
+            self.apple_button(
+                toolbar.inner,
+                "Add",
+                command=lambda: self.open_record_window(page_name, is_new=True)
+            ).pack(side="right")
 
         self.table_container = tk.Frame(
             self.content,
@@ -127,12 +131,21 @@ class RecordsPagesMixin:
 
         config = self.current_config
 
-        rows = self.db.fetch_records(
-            config["table"],
-            config["display_columns"],
-            search_text,
-            config["search_columns"]
-        )
+        if self.current_role != "Admin":
+            rows = self.db.fetch_records_for_trainer(
+                config["table"],
+                config["display_columns"],
+                self.current_trainer_id,
+                search_text,
+                config["search_columns"]
+            )
+        else:
+            rows = self.db.fetch_records(
+                config["table"],
+                config["display_columns"],
+                search_text,
+                config["search_columns"]
+            )
 
         if self.current_page == "Members":
             rows = [self.normalize_member_row(row) for row in rows]
@@ -154,12 +167,21 @@ class RecordsPagesMixin:
 
         config = self.current_config
 
-        rows = self.db.fetch_records(
-            config["table"],
-            config["display_columns"],
-            search_text,
-            search_columns
-        )
+        if self.current_role != "Admin":
+            rows = self.db.fetch_records_for_trainer(
+                config["table"],
+                config["display_columns"],
+                self.current_trainer_id,
+                search_text,
+                search_columns
+            )
+        else:
+            rows = self.db.fetch_records(
+                config["table"],
+                config["display_columns"],
+                search_text,
+                search_columns
+            )
 
         if self.current_page == "Members":
             rows = [self.normalize_member_row(row) for row in rows]
@@ -203,8 +225,9 @@ class RecordsPagesMixin:
 
         card = RoundedFrame(
             parent,
-            bg="white",
+            bg=self.colors["card"],
             parent_bg=self.colors["app_bg"],
+            border_color=self.colors["line"],
             radius=28,
             padding=16
         )
@@ -219,8 +242,8 @@ class RecordsPagesMixin:
         )
 
         # Register stripe tags
-        tree.tag_configure("odd_row",  background="#FFFFFF")
-        tree.tag_configure("even_row", background="#F5F8FF")   # faint blue-white stripe
+        tree.tag_configure("odd_row",  background=self.colors["card"], foreground=self.colors["text"])
+        tree.tag_configure("even_row", background=self.colors["tree_stripe"], foreground=self.colors["text"])
 
         for col in headings:
             tree.heading(col, text=col, command=lambda c=col: self.on_heading_click(c, headings))
@@ -312,6 +335,33 @@ class RecordsPagesMixin:
 
 
     def open_record_window(self, page_name, record_id=None, is_new=False):
+        if is_new and self.current_role != "Admin":
+            messagebox.showwarning(
+                "View Only",
+                "Trainer accounts can view records, but cannot add new records."
+            )
+            return
+
+        # Trainers can only see members assigned to them
+        if (
+            not is_new
+            and record_id is not None
+            and self.current_role != "Admin"
+        ):
+            config_check = self.get_page_config(page_name)
+            visible = self.db.record_visible_to_trainer(
+                config_check["table"],
+                config_check["pk"],
+                record_id,
+                self.current_trainer_id
+            )
+            if not visible:
+                messagebox.showwarning(
+                    "Access Denied",
+                    "You can only view records assigned to you."
+                )
+                return
+
         config = self.get_page_config(page_name)
         self.record_window_config = config
         record = None
@@ -383,13 +433,13 @@ class RecordsPagesMixin:
             col = visible_index % 2
             visible_index += 1
 
-            field_frame = tk.Frame(form_frame, bg="white")
+            field_frame = tk.Frame(form_frame, bg=self.colors["app_bg"])
             field_frame.grid(row=row, column=col, padx=8, pady=8, sticky="nsew")
 
             tk.Label(
                 field_frame,
                 text=label_text,
-                bg="white",
+                bg=self.colors["app_bg"],
                 fg=self.colors["muted"],
                 font=(self.font, 10, "bold")
             ).pack(anchor="w", pady=(0, 6))
@@ -432,6 +482,8 @@ class RecordsPagesMixin:
                 widget = tk.Text(
                     field_frame,
                     bg=self.colors["input"],
+                    fg=self.colors["input_text"],
+                    insertbackground=self.colors["text"],
                     bd=0,
                     font=(self.font, 10),
                     height=4,
@@ -447,6 +499,11 @@ class RecordsPagesMixin:
                 widget = tk.Entry(
                     field_frame,
                     bg=self.colors["input"],
+                    fg=self.colors["input_text"],
+                    insertbackground=self.colors["text"],
+                    disabledbackground=self.colors["input"],
+                    disabledforeground=self.colors["muted"],
+                    readonlybackground=self.colors["input"],
                     bd=0,
                     font=(self.font, 10),
                     validate="key" if validatecommand else "none",
@@ -459,11 +516,11 @@ class RecordsPagesMixin:
 
             if not is_new or locked_field:
                 if isinstance(widget, tk.Text):
-                    widget.config(state="disabled")
+                    widget.config(state="disabled", bg=self.colors["input"], fg=self.colors["muted"])
                 elif isinstance(widget, ttk.Combobox):
                     widget.config(state="disabled")
                 else:
-                    widget.config(state="disabled")
+                    widget.config(state="disabled", fg=self.colors["muted"])
 
             self.record_window_widgets[column_name] = widget
             self.record_window_fields[column_name] = data_type
@@ -502,13 +559,20 @@ class RecordsPagesMixin:
             )
             self.record_window_save_button.pack(side="right")
             self.update_record_window_save_state()
-        else:
+        elif self.current_role == "Admin":
             self.record_window_toggle_button = self.apple_button(
                 action_frame,
                 "Update",
                 command=lambda: self.toggle_record_editing(record_window)
             )
             self.record_window_toggle_button.pack(side="right", padx=(0, 8))
+
+            if page_name == "Members" and record_id is not None:
+                self.apple_button(
+                    action_frame,
+                    "Extend",
+                    command=lambda: self.open_extend_membership_dialog(record_id, record_window)
+                ).pack(side="left")
 
             if not (page_name == "Trainers" and record_values.get("user_id")):
                 self.danger_button(
@@ -530,6 +594,7 @@ class RecordsPagesMixin:
         return load_dropdown_options(self.db, page_name, column_name)
 
 
+
     def lookup_display_value(self, options, raw_value):
         return format_lookup_display_value(options, raw_value)
 
@@ -544,28 +609,50 @@ class RecordsPagesMixin:
         status_widget = self.record_window_widgets.get("membership_status")
         days_widget = self.record_window_widgets.get("days_remaining")
 
-        if duration_widget is None or registered_widget is None:
+        if duration_widget is None or registered_widget is None or expiry_widget is None:
             return
 
-        duration_text = self.get_widget_value(duration_widget, "dropdown")
-        registration_text = self.get_widget_value(registered_widget, "date")
+        is_new = self.record_window_editing and getattr(self, "record_window_id", None) is None
 
-        try:
-            month_count = int(duration_text.split()[0])
-        except Exception:
-            month_count = 1
+        if is_new:
+            duration_text = self.get_widget_value(duration_widget, "dropdown")
+            registration_text = self.get_widget_value(registered_widget, "readonly")
 
-        try:
-            registration_date = datetime.strptime(registration_text, "%Y-%m-%d").date()
-        except Exception:
-            registration_date = date.today()
+            try:
+                month_count = int(duration_text.split()[0])
+            except Exception:
+                month_count = 1
 
-        expiry_date = self.add_months(registration_date, month_count)
+            try:
+                registration_date = datetime.strptime(registration_text, "%Y-%m-%d").date()
+            except Exception:
+                registration_date = date.today()
+
+            expiry_date = self.add_months(registration_date, month_count)
+            expiry_iso = expiry_date.isoformat()
+
+            current_state = expiry_widget["state"] if not isinstance(expiry_widget, tk.Text) else expiry_widget["state"]
+            if isinstance(expiry_widget, tk.Text):
+                expiry_widget.config(state="normal")
+                expiry_widget.delete("1.0", tk.END)
+                expiry_widget.insert("1.0", expiry_iso)
+                expiry_widget.config(state=current_state)
+            else:
+                expiry_widget.config(state="normal")
+                expiry_widget.delete(0, tk.END)
+                expiry_widget.insert(0, expiry_iso)
+                expiry_widget.config(state=current_state)
+        else:
+            expiry_iso = self.get_widget_value(expiry_widget, "readonly")
+            try:
+                expiry_date = datetime.strptime(expiry_iso, "%Y-%m-%d").date()
+            except Exception:
+                expiry_date = date.today()
+
         status = "Active" if date.today() <= expiry_date else "Expired"
         days_remaining = max(0, (expiry_date - date.today()).days)
 
         for widget, value in [
-            (expiry_widget, expiry_date.isoformat()),
             (status_widget, status),
             (days_widget, str(days_remaining)),
         ]:
@@ -596,11 +683,19 @@ class RecordsPagesMixin:
                 ):
                     continue
                 if isinstance(widget, tk.Text):
-                    widget.config(state="normal")
+                    widget.config(
+                        state="normal",
+                        bg=self.colors["input"],
+                        fg=self.colors["input_text"]
+                    )
                 elif isinstance(widget, ttk.Combobox):
                     widget.config(state="readonly")
                 else:
-                    widget.config(state="normal")
+                    widget.config(
+                        state="normal",
+                        bg=self.colors["input"],
+                        fg=self.colors["input_text"]
+                    )
             self.update_record_window_save_state()
             return
 
@@ -645,6 +740,7 @@ class RecordsPagesMixin:
         config = self.record_window_config
         columns = []
         values = []
+        lookup_fields = config.get("lookup_fields", {})
 
         for label_text, column_name, data_type in config["fields"]:
             if column_name in self.record_window_hidden_fields or column_name in self.record_window_locked_fields:
@@ -654,17 +750,29 @@ class RecordsPagesMixin:
             raw_value = self.get_widget_value(widget, data_type)
             value = parse_field_value(label_text, data_type, raw_value)
 
+            if value is not None and data_type == "dropdown":
+                options = self.get_dropdown_options(self.record_window_page, column_name)
+                if options and value not in options:
+                    raise ValueError(f"{label_text} must use one of the available options.")
+
+            lookup_target = lookup_fields.get(column_name)
+            if value is not None and lookup_target is not None:
+                table, pk = lookup_target
+                if not self.db.record_exists(table, pk, value):
+                    raise ValueError(f"{label_text} must reference an existing database record.")
+
             columns.append(column_name)
             values.append(value)
 
         if self.record_window_page == "Members":
-            columns, values = self.prepare_member_values(columns, values)
+            is_new = getattr(self, "record_window_id", None) is None
+            columns, values = self.prepare_member_values(columns, values, is_new=is_new)
 
         return columns, values
 
 
-    def prepare_member_values(self, columns, values):
-        return prepare_membership_values(columns, values)
+    def prepare_member_values(self, columns, values, is_new=True):
+        return prepare_membership_values(columns, values, is_new)
 
 
     def _record_label(self):
@@ -695,6 +803,13 @@ class RecordsPagesMixin:
 
 
     def save_window_record(self, window, is_new=False):
+        if self.current_role != "Admin":
+            messagebox.showwarning(
+                "View Only",
+                "Trainer accounts can view records, but cannot save changes."
+            )
+            return
+
         try:
             columns, values = self.collect_window_values()
             saved_record_id = self.record_window_id
@@ -724,6 +839,13 @@ class RecordsPagesMixin:
 
 
     def delete_record_window(self, window):
+        if self.current_role != "Admin":
+            messagebox.showwarning(
+                "View Only",
+                "Trainer accounts can view records, but cannot delete records."
+            )
+            return
+
         confirm = messagebox.askyesno(
             "Confirm Delete",
             "Are you sure you want to delete this record?"
@@ -741,6 +863,100 @@ class RecordsPagesMixin:
         self.load_table(self.search_entry.get().strip())
         window.destroy()
         self._show_delete_success()
+
+
+    def open_extend_membership_dialog(self, member_id, parent_window):
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Extend Membership")
+        dialog.geometry("360x220")
+        dialog.configure(bg=self.colors["app_bg"])
+        dialog.transient(parent_window)
+        dialog.grab_set()
+        dialog.resizable(False, False)
+
+        tk.Label(
+            dialog,
+            text="Extend Membership",
+            bg=self.colors["app_bg"],
+            fg=self.colors["text"],
+            font=(self.font, 16, "bold")
+        ).pack(anchor="w", padx=24, pady=(20, 4))
+
+        tk.Label(
+            dialog,
+            text="How many months would you like to add?",
+            bg=self.colors["app_bg"],
+            fg=self.colors["muted"],
+            font=(self.font, 10)
+        ).pack(anchor="w", padx=24, pady=(0, 12))
+
+        spinbox_frame = tk.Frame(dialog, bg=self.colors["app_bg"])
+        spinbox_frame.pack(anchor="w", padx=24)
+
+        months_var = tk.IntVar(value=1)
+        spinbox = tk.Spinbox(
+            spinbox_frame,
+            from_=1,
+            to=24,
+            textvariable=months_var,
+            width=6,
+            bg=self.colors["input"],
+            fg=self.colors["input_text"],
+            insertbackground=self.colors["text"],
+            bd=0,
+            font=(self.font, 13, "bold"),
+            relief="flat",
+            justify="center",
+            highlightthickness=0,
+        )
+        spinbox.pack(side="left", ipady=8, padx=(0, 8))
+
+        tk.Label(
+            spinbox_frame,
+            text="month(s)",
+            bg=self.colors["app_bg"],
+            fg=self.colors["muted"],
+            font=(self.font, 10)
+        ).pack(side="left")
+
+        def confirm_extend():
+            try:
+                months = int(months_var.get())
+                if months < 1 or months > 24:
+                    messagebox.showwarning("Invalid Input", "Please choose between 1 and 24 months.", parent=dialog)
+                    return
+            except (ValueError, tk.TclError):
+                messagebox.showwarning("Invalid Input", "Please enter a valid number of months.", parent=dialog)
+                return
+
+            try:
+                new_expiry, days_remaining = self.db.extend_member_membership(member_id, months)
+                dialog.destroy()
+                parent_window.destroy()
+                self.load_table(self.search_entry.get().strip() if self.search_entry else "")
+                messagebox.showinfo(
+                    "Membership Extended",
+                    f"Membership extended by {months} month(s).\n"
+                    f"New expiry: {new_expiry}\n"
+                    f"Days remaining: {days_remaining}"
+                )
+            except Exception as e:
+                messagebox.showerror("Extension Failed", str(e), parent=dialog)
+
+        btn_frame = tk.Frame(dialog, bg=self.colors["app_bg"])
+        btn_frame.pack(anchor="e", padx=24, pady=(16, 0))
+
+        self.secondary_button(
+            btn_frame,
+            "Cancel",
+            command=dialog.destroy
+        ).pack(side="left", padx=(0, 8))
+
+        self.apple_button(
+            btn_frame,
+            "Confirm",
+            command=confirm_extend
+        ).pack(side="left")
 
 
     def on_row_selected(self, event):

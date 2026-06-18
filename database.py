@@ -1,7 +1,9 @@
 import sqlite3
 import hashlib
+from datetime import date, datetime
 
 from services.field_validation import normalize_contact_number
+from services.membership import add_months
 
 class Database:
     def hash_password(self, password):
@@ -35,6 +37,7 @@ class Database:
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS members (
                 member_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                assigned_trainer_id INTEGER,
                 member_name TEXT NOT NULL,
                 residence_address TEXT,
                 contact_number TEXT,
@@ -45,11 +48,10 @@ class Database:
                 membership_registered TEXT,
                 membership_duration TEXT,
                 membership_expiry TEXT,
-                days_remaining INTEGER
+                days_remaining INTEGER,
+                FOREIGN KEY(assigned_trainer_id) REFERENCES trainers(trainer_id) ON DELETE SET NULL
             )
         """)
-
-        self.migrate_members_days_column(cursor)
 
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS trainers (
@@ -67,6 +69,7 @@ class Database:
         """)
 
         self.migrate_trainers_account_columns(cursor)
+        self.migrate_members_columns(cursor)
 
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS class_sessions (
@@ -139,7 +142,7 @@ class Database:
         conn.commit()
         conn.close()
 
-    def migrate_members_days_column(self, cursor):
+    def migrate_members_columns(self, cursor):
         cursor.execute("PRAGMA table_info(members)")
         columns = [column[1] for column in cursor.fetchall()]
 
@@ -147,6 +150,20 @@ class Database:
             cursor.execute("ALTER TABLE members RENAME COLUMN months_remaining TO days_remaining")
         elif "days_remaining" not in columns:
             cursor.execute("ALTER TABLE members ADD COLUMN days_remaining INTEGER")
+
+        if "assigned_trainer_id" not in columns:
+            cursor.execute("ALTER TABLE members ADD COLUMN assigned_trainer_id INTEGER REFERENCES trainers(trainer_id) ON DELETE SET NULL")
+
+        self.assign_unassigned_members(cursor)
+
+    def assign_unassigned_members(self, cursor):
+        cursor.execute("SELECT trainer_id FROM trainers ORDER BY trainer_id LIMIT 1")
+        first_trainer = cursor.fetchone()
+        if first_trainer:
+            cursor.execute(
+                "UPDATE members SET assigned_trainer_id = ? WHERE assigned_trainer_id IS NULL",
+                (first_trainer[0],)
+            )
 
     def migrate_trainers_account_columns(self, cursor):
         cursor.execute("PRAGMA table_info(trainers)")
@@ -223,7 +240,9 @@ class Database:
                 ("Coach Marc", "marc@email.com", "+639170000003", "Cardio", 24000, "2022-09-10", 4),
             ])
 
+        self.assign_unassigned_members(cursor)
         self.create_missing_trainer_profiles(cursor)
+        self.assign_unassigned_members(cursor)
 
         cursor.execute("SELECT COUNT(*) FROM class_sessions")
         if cursor.fetchone()[0] == 0:
@@ -446,6 +465,128 @@ class Database:
 
         conn.close()
         return [row[0] for row in rows]
+
+    def fetch_trainer_lookup_options(self):
+        return self.fetch_lookup_options("trainers", "trainer_id", "trainer_name")
+
+    def record_exists(self, table, pk, record_id):
+        conn = self.connect()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            f"SELECT 1 FROM {table} WHERE {pk} = ? LIMIT 1",
+            (record_id,)
+        )
+        exists = cursor.fetchone() is not None
+
+        conn.close()
+        return exists
+
+    def record_visible_to_trainer(self, table, pk, record_id, trainer_id):
+        if trainer_id is None:
+            return False
+
+        conn = self.connect()
+        cursor = conn.cursor()
+
+        if table == "members":
+            cursor.execute(
+                "SELECT 1 FROM members WHERE member_id = ? AND assigned_trainer_id = ? LIMIT 1",
+                (record_id, trainer_id)
+            )
+        elif table in ("class_enrollment", "attendance", "transactions"):
+            cursor.execute(
+                f"""
+                SELECT 1
+                FROM {table} r
+                JOIN members m ON m.member_id = r.member_id
+                WHERE r.{pk} = ? AND m.assigned_trainer_id = ?
+                LIMIT 1
+                """,
+                (record_id, trainer_id)
+            )
+        else:
+            conn.close()
+            return True
+
+        visible = cursor.fetchone() is not None
+        conn.close()
+        return visible
+
+    def fetch_records_for_trainer(self, table, columns, trainer_id, search_term="", search_columns=None):
+        if trainer_id is None:
+            return []
+
+        conn = self.connect()
+        cursor = conn.cursor()
+
+        column_text = ", ".join([f"r.{column}" for column in columns])
+        params = [trainer_id]
+
+        if table == "members":
+            sql = f"SELECT {column_text} FROM members r WHERE r.assigned_trainer_id = ?"
+        elif table in ("class_enrollment", "attendance", "transactions"):
+            sql = f"""
+                SELECT {column_text}
+                FROM {table} r
+                JOIN members m ON m.member_id = r.member_id
+                WHERE m.assigned_trainer_id = ?
+            """
+        else:
+            conn.close()
+            return self.fetch_records(table, columns, search_term, search_columns)
+
+        if search_term and search_columns:
+            conditions = [f"CAST(r.{col} AS TEXT) LIKE ?" for col in search_columns]
+            sql += " AND (" + " OR ".join(conditions) + ")"
+            params.extend([f"%{search_term}%"] * len(search_columns))
+
+        sql += f" ORDER BY r.{columns[0]} DESC"
+        cursor.execute(sql, params)
+        rows = cursor.fetchall()
+
+        conn.close()
+        return rows
+
+    def extend_member_membership(self, member_id, months):
+        conn = self.connect()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            "SELECT membership_expiry FROM members WHERE member_id = ?",
+            (member_id,)
+        )
+        row = cursor.fetchone()
+        if row is None:
+            conn.close()
+            raise ValueError("Member record was not found.")
+
+        try:
+            current_expiry = datetime.strptime(row[0], "%Y-%m-%d").date()
+        except (TypeError, ValueError):
+            current_expiry = date.today()
+
+        base_date = current_expiry if current_expiry > date.today() else date.today()
+        new_expiry = add_months(base_date, months)
+        status = "Active" if date.today() <= new_expiry else "Expired"
+        days_remaining = max(0, (new_expiry - date.today()).days)
+        duration = f"{months} Month" if months == 1 else f"{months} Months"
+
+        cursor.execute(
+            """
+            UPDATE members
+            SET membership_duration = ?,
+                membership_expiry = ?,
+                membership_status = ?,
+                days_remaining = ?
+            WHERE member_id = ?
+            """,
+            (duration, new_expiry.isoformat(), status, days_remaining, member_id)
+        )
+
+        conn.commit()
+        conn.close()
+        return new_expiry.isoformat(), days_remaining
     
     def fetch_records(self, table, columns, search_term="", search_columns=None):
         conn = self.connect()

@@ -1,9 +1,11 @@
+import re
 from datetime import datetime
 
 
 CONTACT_PREFIX = "+63"
 CONTACT_LOCAL_DIGITS = 10
 CONTACT_TOTAL_LENGTH = len(CONTACT_PREFIX) + CONTACT_LOCAL_DIGITS
+TIME_PATTERN = re.compile(r"^(0[1-9]|1[0-2]):[0-5][0-9] (AM|PM)$")
 
 
 def normalize_contact_number(raw_value):
@@ -57,9 +59,12 @@ def parse_field_value(label_text, data_type, raw_value):
 
     if data_type == "int":
         try:
-            return int(raw_value)
+            value = int(raw_value)
         except ValueError:
             raise ValueError(f"{label_text} must be a whole number.")
+        if value < 0:
+            raise ValueError(f"{label_text} cannot be negative.")
+        return value
 
     if data_type == "float":
         try:
@@ -87,5 +92,11 @@ def parse_field_value(label_text, data_type, raw_value):
         except ValueError:
             raise ValueError(f"{label_text} must use YYYY-MM-DD format.")
         return raw_value
+
+    if data_type == "time":
+        value = raw_value.upper()
+        if not TIME_PATTERN.match(value):
+            raise ValueError(f"{label_text} must use HH:MM AM/PM format.")
+        return value
 
     return raw_value

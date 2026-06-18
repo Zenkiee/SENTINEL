@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 
-from config import APP_TITLE, WINDOW_GEOMETRY, MIN_WINDOW_SIZE, COLORS, FONT_FAMILY
+from config import APP_TITLE, WINDOW_GEOMETRY, MIN_WINDOW_SIZE, COLORS, DARK_COLORS, FONT_FAMILY
 from database import Database
 from pages.auth import AuthPagesMixin
 from pages.dashboard import DashboardPagesMixin
@@ -37,6 +37,7 @@ class SentinelApp(AuthPagesMixin, DashboardPagesMixin, RecordsPagesMixin, Report
         self.sort_ascending = False
         self.search_mode = None
 
+        self.dark_mode = False
         self.colors = COLORS
         self.font = FONT_FAMILY
 
@@ -50,9 +51,9 @@ class SentinelApp(AuthPagesMixin, DashboardPagesMixin, RecordsPagesMixin, Report
 
         style.configure(
             "Treeview",
-            background="white",
+            background=self.colors["card"],
             foreground=self.colors["text"],
-            fieldbackground="white",
+            fieldbackground=self.colors["card"],
             rowheight=36,
             borderwidth=0,
             font=(self.font, 10)
@@ -60,7 +61,7 @@ class SentinelApp(AuthPagesMixin, DashboardPagesMixin, RecordsPagesMixin, Report
 
         style.configure(
             "Treeview.Heading",
-            background="#F2F2F7",
+            background=self.colors["tree_heading"],
             foreground=self.colors["muted"],
             font=(self.font, 10, "bold"),
             borderwidth=0,
@@ -78,6 +79,7 @@ class SentinelApp(AuthPagesMixin, DashboardPagesMixin, RecordsPagesMixin, Report
             "TCombobox",
             fieldbackground=self.colors["input"],
             background=self.colors["input"],
+            foreground=self.colors["text"],
             bordercolor=self.colors["line"],
             lightcolor=self.colors["line"],
             darkcolor=self.colors["line"],
@@ -132,8 +134,8 @@ class SentinelApp(AuthPagesMixin, DashboardPagesMixin, RecordsPagesMixin, Report
 
 
     def secondary_button(self, parent, text, command=None):
-        normal_bg = "#E8E8ED"
-        hover_bg = "#D1D1D6"
+        normal_bg = self.colors["secondary"]
+        hover_bg = self.colors["secondary_hover"]
         btn = tk.Button(
             parent,
             text=text,
@@ -156,7 +158,7 @@ class SentinelApp(AuthPagesMixin, DashboardPagesMixin, RecordsPagesMixin, Report
 
     def danger_button(self, parent, text, command=None):
         normal_bg = self.colors["soft_red"]
-        hover_bg = "#FFD0CC"
+        hover_bg = self.colors["danger_hover"]
         btn = tk.Button(
             parent,
             text=text,
@@ -175,6 +177,23 @@ class SentinelApp(AuthPagesMixin, DashboardPagesMixin, RecordsPagesMixin, Report
         )
         self._bind_button_hover(btn, normal_bg, hover_bg, self.colors["red"], self.colors["red"])
         return btn
+
+
+    def theme_button_text(self):
+        return "Light Mode" if self.dark_mode else "Dark Mode"
+
+
+    def toggle_theme(self, screen=None):
+        self.dark_mode = not self.dark_mode
+        self.colors = DARK_COLORS if self.dark_mode else COLORS
+        self.setup_styles()
+
+        if screen == "register":
+            self.show_register()
+        elif screen == "login" or not self.current_user:
+            self.show_login()
+        else:
+            self.show_main_app()
 
 
     def validate_numbers_only(self, char):
@@ -254,7 +273,7 @@ class SentinelApp(AuthPagesMixin, DashboardPagesMixin, RecordsPagesMixin, Report
 
         self.content_canvas.bind_all("<MouseWheel>", self.on_mousewheel)
 
-        self.go_to_page("Dashboard")
+        self.go_to_page(self.current_page)
 
 
     def on_mousewheel(self, event):
@@ -265,13 +284,13 @@ class SentinelApp(AuthPagesMixin, DashboardPagesMixin, RecordsPagesMixin, Report
         for widget in self.sidebar.winfo_children():
             widget.destroy()
 
-        logo_area = tk.Frame(self.sidebar, bg="white")
+        logo_area = tk.Frame(self.sidebar, bg=self.colors["sidebar"])
         logo_area.pack(fill="x", padx=22, pady=(28, 28))
 
         logo = tk.Label(
             logo_area,
             text="S",
-            bg=self.colors["text"],
+            bg="#1D1D1F",
             fg="white",
             font=(self.font, 18, "bold"),
             width=3,
@@ -279,13 +298,13 @@ class SentinelApp(AuthPagesMixin, DashboardPagesMixin, RecordsPagesMixin, Report
         )
         logo.pack(side="left")
 
-        text_area = tk.Frame(logo_area, bg="white")
+        text_area = tk.Frame(logo_area, bg=self.colors["sidebar"])
         text_area.pack(side="left", padx=12)
 
         tk.Label(
             text_area,
             text="SENTINEL",
-            bg="white",
+            bg=self.colors["sidebar"],
             fg=self.colors["text"],
             font=(self.font, 15, "bold")
         ).pack(anchor="w")
@@ -293,7 +312,7 @@ class SentinelApp(AuthPagesMixin, DashboardPagesMixin, RecordsPagesMixin, Report
         tk.Label(
             text_area,
             text=f"{self.current_role} Mode",
-            bg="white",
+            bg=self.colors["sidebar"],
             fg=self.colors["muted"],
             font=(self.font, 9)
         ).pack(anchor="w")
@@ -325,7 +344,7 @@ class SentinelApp(AuthPagesMixin, DashboardPagesMixin, RecordsPagesMixin, Report
         for item in menu_items:
             self.nav_button(item)
 
-        tk.Frame(self.sidebar, bg="white").pack(expand=True, fill="both")
+        tk.Frame(self.sidebar, bg=self.colors["sidebar"]).pack(expand=True, fill="both")
 
         logout_btn = self.danger_button(
             self.sidebar,
@@ -337,7 +356,7 @@ class SentinelApp(AuthPagesMixin, DashboardPagesMixin, RecordsPagesMixin, Report
 
     def nav_button(self, text):
         active = text == self.current_page
-        normal_bg = self.colors["soft_blue"] if active else "white"
+        normal_bg = self.colors["soft_blue"] if active else self.colors["sidebar"]
         hover_bg = self.colors["soft_blue"]
         normal_fg = self.colors["accent"] if active else self.colors["text"]
         hover_fg = self.colors["accent"]
@@ -376,20 +395,27 @@ class SentinelApp(AuthPagesMixin, DashboardPagesMixin, RecordsPagesMixin, Report
 
         chip = RoundedFrame(
             self.topbar,
-            bg="white",
+            bg=self.colors["card"],
             parent_bg=self.colors["app_bg"],
+            border_color=self.colors["line"],
             radius=24,
             padding=12
         )
-        chip.pack(side="right", padx=30)
+        chip.pack(side="right", padx=(10, 30))
 
         tk.Label(
             chip.inner,
             text=f"{self.current_role} · {self.current_user}",
-            bg="white",
+            bg=self.colors["card"],
             fg=self.colors["text"],
             font=(self.font, 10, "bold")
         ).pack()
+
+        self.secondary_button(
+            self.topbar,
+            self.theme_button_text(),
+            command=self.toggle_theme
+        ).pack(side="right")
 
 
     def go_to_page(self, page):

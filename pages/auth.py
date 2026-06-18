@@ -26,7 +26,7 @@ class AuthPagesMixin:
         logo = tk.Label(
             left,
             text="S",
-            bg=self.colors["text"],
+            bg="#1D1D1F",
             fg="white",
             font=(self.font, 30, "bold"),
             width=3,
@@ -65,19 +65,20 @@ class AuthPagesMixin:
 
         login_card = RoundedFrame(
             right,
-            bg="white",
+            bg=self.colors["card"],
             parent_bg=self.colors["app_bg"],
+            border_color=self.colors["line"],
             radius=28,
             padding=34
         )
         login_card.pack(expand=True, fill="both")
-        login_card.configure(width=455, height=455)
+        login_card.configure(width=455, height=500)
         login_card.pack_propagate(False)
 
         tk.Label(
             login_card.inner,
             text="Welcome back",
-            bg="white",
+            bg=self.colors["card"],
             fg=self.colors["text"],
             font=(self.font, 27, "bold")
         ).pack(anchor="w", pady=(0, 6))
@@ -85,7 +86,7 @@ class AuthPagesMixin:
         tk.Label(
             login_card.inner,
             text="Sign in to continue to SENTINEL.",
-            bg="white",
+            bg=self.colors["card"],
             fg=self.colors["muted"],
             font=(self.font, 11)
         ).pack(anchor="w", pady=(0, 28))
@@ -105,10 +106,16 @@ class AuthPagesMixin:
             command=self.login
         ).pack(fill="x", pady=(28, 14))
 
+        self.secondary_button(
+            login_card.inner,
+            self.theme_button_text(),
+            command=lambda: self.toggle_theme("login")
+        ).pack(fill="x", pady=(0, 14))
+
         register_link = tk.Label(
             login_card.inner,
             text="create an account",
-            bg="white",
+            bg=self.colors["card"],
             fg=self.colors["accent"],
             font=(self.font, 10, "underline"),
             cursor="hand2"
@@ -126,8 +133,9 @@ class AuthPagesMixin:
 
         card = RoundedFrame(
             shell,
-            bg="white",
+            bg=self.colors["card"],
             parent_bg=self.colors["app_bg"],
+            border_color=self.colors["line"],
             radius=28,
             padding=34
         )
@@ -138,7 +146,7 @@ class AuthPagesMixin:
         tk.Label(
             card.inner,
             text="Create Account",
-            bg="white",
+            bg=self.colors["card"],
             fg=self.colors["text"],
             font=(self.font, 27, "bold")
         ).pack(anchor="w", pady=(0, 20))
@@ -174,7 +182,7 @@ class AuthPagesMixin:
         signin_link = tk.Label(
             card.inner,
             text="Returning user? Sign in",
-            bg="white",
+            bg=self.colors["card"],
             fg=self.colors["accent"],
             font=(self.font, 10, "underline"),
             cursor="hand2"
@@ -191,26 +199,48 @@ class AuthPagesMixin:
         password = self.reg_password.get().strip()
         confirm = self.reg_confirm.get().strip()
 
+        # ── Field presence check ─────────────────────────────────────────────
         if not all([full_name, username, email, contact, password, confirm]):
             messagebox.showwarning("Registration Error", "All fields are required.")
             return
 
-        if "@" not in email or "." not in email:
-            messagebox.showwarning("Registration Error", "Please provide a valid email format.")
+        # ── Full name ────────────────────────────────────────────────────────
+        if len(full_name) < 2:
+            messagebox.showwarning("Registration Error", "Full name must be at least 2 characters.")
             return
 
+        # ── Username ─────────────────────────────────────────────────────────
+        if len(username) < 3:
+            messagebox.showwarning("Registration Error", "Username must be at least 3 characters.")
+            return
+        if " " in username:
+            messagebox.showwarning("Registration Error", "Username must not contain spaces.")
+            return
+
+        # ── Email ────────────────────────────────────────────────────────────
+        if "@" not in email or "." not in email.split("@")[-1]:
+            messagebox.showwarning("Registration Error", "Please provide a valid email address (e.g. user@domain.com).")
+            return
+
+        # ── Contact number ───────────────────────────────────────────────────
         if not is_valid_contact_number(contact):
-            messagebox.showwarning("Registration Error", "Contact number must use +63 followed by 10 digits.")
+            messagebox.showwarning("Registration Error", "Contact number must start with +63 followed by 10 digits.")
             return
 
         contact = normalize_contact_number(contact)
 
+        # ── Password ─────────────────────────────────────────────────────────
+        if len(password) < 6:
+            messagebox.showwarning("Registration Error", "Password must be at least 6 characters.")
+            return
+
         if password != confirm:
             messagebox.showwarning("Registration Error", "Passwords do not match.")
             return
-        
+
+        # ── All validation passed — attempt registration ──────────────────────
         pw_hash = hashlib.sha256(password.encode()).hexdigest()
-        
+
         success, msg = self.db.register_user(username, full_name, email, contact, pw_hash, role="Trainer")
 
         if success:
@@ -221,7 +251,7 @@ class AuthPagesMixin:
             self.show_login()
         else:
             messagebox.showerror("Registration Failed", msg)
-    
+
 
     def form_input(
         self,
@@ -235,7 +265,7 @@ class AuthPagesMixin:
         tk.Label(
             parent,
             text=label,
-            bg="white",
+            bg=self.colors["card"],
             fg=self.colors["muted"],
             font=(self.font, 10, "bold")
         ).pack(anchor="w", pady=(8, 6))
@@ -243,7 +273,7 @@ class AuthPagesMixin:
         entry = tk.Entry(
             parent,
             bg=self.colors["input"],
-            fg=self.colors["text"],
+            fg=self.colors["input_text"],
             insertbackground=self.colors["text"],
             bd=0,
             relief="flat",
@@ -269,11 +299,11 @@ class AuthPagesMixin:
             text="Show password",
             variable=variable,
             command=toggle_password,
-            bg="white",
+            bg=self.colors["card"],
             fg=self.colors["muted"],
-            activebackground="white",
+            activebackground=self.colors["card"],
             activeforeground=self.colors["text"],
-            selectcolor="white",
+            selectcolor=self.colors["card"],
             font=(self.font, 10),
             cursor="hand2",
             bd=0,

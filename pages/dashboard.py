@@ -126,8 +126,9 @@ class DashboardPagesMixin:
 
         search_card = RoundedFrame(
             self.content,
-            bg="white",
+            bg=self.colors["card"],
             parent_bg=self.colors["app_bg"],
+            border_color=self.colors["line"],
             radius=28,
             padding=20
         )
@@ -136,6 +137,8 @@ class DashboardPagesMixin:
         search_entry = tk.Entry(
             search_card.inner,
             bg=self.colors["input"],
+            fg=self.colors["input_text"],
+            insertbackground=self.colors["text"],
             bd=0,
             font=(self.font, 12)
         )
@@ -212,8 +215,9 @@ class DashboardPagesMixin:
         for i, (label, value) in enumerate(details):
             card = RoundedFrame(
                 grid,
-                bg="white",
+                bg=self.colors["card"],
                 parent_bg=self.colors["app_bg"],
+                border_color=self.colors["line"],
                 radius=28,
                 padding=18
             )
@@ -222,7 +226,7 @@ class DashboardPagesMixin:
             tk.Label(
                 card.inner,
                 text=label,
-                bg="white",
+                bg=self.colors["card"],
                 fg=self.colors["muted"],
                 font=(self.font, 10, "bold")
             ).pack(anchor="w")
@@ -230,7 +234,7 @@ class DashboardPagesMixin:
             tk.Label(
                 card.inner,
                 text=str(value),
-                bg="white",
+                bg=self.colors["card"],
                 fg=self.colors["text"],
                 font=(self.font, 13, "bold"),
                 wraplength=180,
@@ -244,8 +248,9 @@ class DashboardPagesMixin:
     def hero_section(self, title, subtitle):
         hero = RoundedFrame(
             self.content,
-            bg="white",
+            bg=self.colors["card"],
             parent_bg=self.colors["app_bg"],
+            border_color=self.colors["line"],
             radius=28,
             padding=26
         )
@@ -254,7 +259,7 @@ class DashboardPagesMixin:
         tk.Label(
             hero.inner,
             text=title,
-            bg="white",
+            bg=self.colors["card"],
             fg=self.colors["text"],
             font=(self.font, 22, "bold")
         ).pack(anchor="w", pady=(0, 6))
@@ -262,7 +267,7 @@ class DashboardPagesMixin:
         tk.Label(
             hero.inner,
             text=subtitle,
-            bg="white",
+            bg=self.colors["card"],
             fg=self.colors["muted"],
             font=(self.font, 11),
             wraplength=850,
@@ -278,13 +283,14 @@ class DashboardPagesMixin:
             # Slightly tinted hover bg based on the card's accent dot color
             card = RoundedFrame(
                 grid,
-                bg="white",
+                bg=self.colors["card"],
                 parent_bg=self.colors["app_bg"],
+                border_color=self.colors["line"],
                 radius=28,
                 padding=20,
                 hoverable=True,
-                hover_bg="#F7F9FF",
-                hover_border="#C5D8FF"
+                hover_bg=self.colors["card_hover"],
+                hover_border=self.colors["card_hover_border"]
             )
             card.grid(
                 row=i // columns,
@@ -297,7 +303,7 @@ class DashboardPagesMixin:
             tk.Label(
                 card.inner,
                 text="●",
-                bg="white",
+                bg=self.colors["card"],
                 fg=color,
                 font=(self.font, 14)
             ).pack(anchor="w")
@@ -305,7 +311,7 @@ class DashboardPagesMixin:
             tk.Label(
                 card.inner,
                 text=value,
-                bg="white",
+                bg=self.colors["card"],
                 fg=self.colors["text"],
                 font=(self.font, 24, "bold")
             ).pack(anchor="w", pady=(6, 0))
@@ -313,7 +319,7 @@ class DashboardPagesMixin:
             tk.Label(
                 card.inner,
                 text=label,
-                bg="white",
+                bg=self.colors["card"],
                 fg=self.colors["muted"],
                 font=(self.font, 10, "bold")
             ).pack(anchor="w")
@@ -325,19 +331,20 @@ class DashboardPagesMixin:
     def class_session_card(self, parent, name, time, members):
         card = RoundedFrame(
             parent,
-            bg="white",
+            bg=self.colors["card"],
             parent_bg=self.colors["app_bg"],
+            border_color=self.colors["line"],
             radius=22,
             padding=18,
             hoverable=True,
-            hover_bg="#F7F9FF",
-            hover_border="#C5D8FF"
+            hover_bg=self.colors["card_hover"],
+            hover_border=self.colors["card_hover_border"]
         )
 
         tk.Label(
             card.inner,
             text=name,
-            bg="white",
+            bg=self.colors["card"],
             fg=self.colors["text"],
             font=(self.font, 15, "bold")
         ).pack(anchor="w")
@@ -345,7 +352,7 @@ class DashboardPagesMixin:
         tk.Label(
             card.inner,
             text=f"{time} · {members}",
-            bg="white",
+            bg=self.colors["card"],
             fg=self.colors["muted"],
             font=(self.font, 10)
         ).pack(anchor="w", pady=(4, 16))

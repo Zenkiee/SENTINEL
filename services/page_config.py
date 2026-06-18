@@ -26,6 +26,7 @@ PAGE_CONFIGS = {
             "membership_status",
         ],
         "fields": [
+            ("Assigned Trainer", "assigned_trainer_id", "lookup"),
             ("Member Name", "member_name", "text"),
             ("Residence Address", "residence_address", "text"),
             ("Contact Number", "contact_number", "contact"),
@@ -38,6 +39,9 @@ PAGE_CONFIGS = {
             ("Membership Status", "membership_status", "readonly"),
             ("Days Remaining", "days_remaining", "readonly"),
         ],
+        "lookup_fields": {
+            "assigned_trainer_id": ("trainers", "trainer_id"),
+        },
     },
     "Trainers": {
         "table": "trainers",
@@ -143,6 +147,10 @@ PAGE_CONFIGS = {
             ("Session ID", "session_id", "lookup"),
             ("Enrolled Date", "enrolled_date", "date"),
         ],
+        "lookup_fields": {
+            "member_id": ("members", "member_id"),
+            "session_id": ("class_sessions", "session_id"),
+        },
     },
     "Attendance": {
         "table": "attendance",
@@ -168,8 +176,12 @@ PAGE_CONFIGS = {
         "fields": [
             ("Member ID", "member_id", "lookup"),
             ("Session ID", "session_id", "lookup"),
-            ("Check-In Time", "check_in_time", "text"),
+            ("Check-In Time", "check_in_time", "time"),
         ],
+        "lookup_fields": {
+            "member_id": ("members", "member_id"),
+            "session_id": ("class_sessions", "session_id"),
+        },
     },
     "Equipment": {
         "table": "equipment",
@@ -231,6 +243,9 @@ PAGE_CONFIGS = {
             ("Action Taken", "action_taken", "text"),
             ("Log Date", "log_date", "date"),
         ],
+        "lookup_fields": {
+            "equipment_id": ("equipment", "equipment_id"),
+        },
     },
     "Transactions": {
         "table": "transactions",
@@ -264,6 +279,9 @@ PAGE_CONFIGS = {
             ("Payment Type", "payment_type", "dropdown"),
             ("Total Amount", "total_amount", "float"),
         ],
+        "lookup_fields": {
+            "member_id": ("members", "member_id"),
+        },
     },
 }
 
