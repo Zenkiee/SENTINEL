@@ -1,6 +1,6 @@
 import hashlib
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import messagebox
 
 from services.field_validation import (
     CONTACT_PREFIX,
@@ -71,7 +71,7 @@ class AuthPagesMixin:
             padding=34
         )
         login_card.pack(expand=True, fill="both")
-        login_card.configure(width=455, height=520)
+        login_card.configure(width=455, height=455)
         login_card.pack_propagate(False)
 
         tk.Label(
@@ -93,29 +93,11 @@ class AuthPagesMixin:
         self.username_entry = self.form_input(login_card.inner, "Username")
         self.password_entry = self.form_input(login_card.inner, "Password", show="*")
 
-        tk.Label(
-            login_card.inner,
-            text="Role",
-            bg="white",
-            fg=self.colors["muted"],
-            font=(self.font, 10, "bold")
-        ).pack(anchor="w", pady=(10, 6))
-
-        self.role_var = tk.StringVar(value="Admin")
-        role_box = ttk.Combobox(
-            login_card.inner,
-            textvariable=self.role_var,
-            values=["Admin", "Trainer"],
-            state="readonly",
-            font=(self.font, 11)
-        )
-        role_box.pack(fill="x", ipady=8)
-
         self.apple_button(
             login_card.inner,
             "Log In",
             command=self.login
-        ).pack(fill="x", pady=(32, 14))
+        ).pack(fill="x", pady=(28, 14))
 
         register_link = tk.Label(
             login_card.inner,
@@ -279,11 +261,6 @@ class AuthPagesMixin:
             input_hash = hashlib.sha256(password.encode()).hexdigest()
 
             if stored_hash == input_hash:
-                selected_role = self.role_var.get()
-                if user[5] != selected_role:
-                    messagebox.showerror("Login Failed", f"This account is registered as {user[5]}.")
-                    return
-
                 self.current_user_id = user[0]
                 self.current_user = user[1]
                 self.current_role = user[5] 
