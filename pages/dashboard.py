@@ -240,15 +240,6 @@ class DashboardPagesMixin:
         for i in range(4):
             grid.grid_columnconfigure(i, weight=1)
 
-        action_row = tk.Frame(self.content, bg=self.colors["app_bg"])
-        action_row.pack(fill="x", padx=30, pady=(4, 24))
-
-        self.apple_button(
-            action_row,
-            "Update Profile",
-            command=lambda: self.open_record_window("Trainers", record_id=self.current_trainer_id)
-        ).pack(side="left")
-
 
     def hero_section(self, title, subtitle):
         hero = RoundedFrame(
