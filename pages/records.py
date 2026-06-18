@@ -588,16 +588,25 @@ class RecordsPagesMixin:
         self.save_window_record(window, is_new=False)
 
 
+    def is_required_record_field(self, column_name, data_type):
+        required_fields = self.record_window_config.get("required_fields")
+        if required_fields is not None:
+            return column_name in required_fields
+        return data_type != "readonly"
+
+
     def update_record_window_save_state(self):
         if self.record_window_save_button is None and self.record_window_toggle_button is None:
             return
 
         valid = True
         for column_name, widget in self.record_window_widgets.items():
-            if self.record_window_fields[column_name] == "readonly":
+            data_type = self.record_window_fields[column_name]
+            if data_type == "readonly":
                 continue
-            value = self.get_widget_value(widget, self.record_window_fields[column_name])
-            if value == "":
+
+            value = self.get_widget_value(widget, data_type)
+            if self.is_required_record_field(column_name, data_type) and value == "":
                 valid = False
                 break
 

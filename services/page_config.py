@@ -42,6 +42,12 @@ PAGE_CONFIGS = {
     "Trainers": {
         "table": "trainers",
         "pk": "trainer_id",
+        "required_fields": [
+            "trainer_name",
+            "email",
+            "contact_number",
+            "specialization",
+        ],
         "display_columns": [
             "trainer_id",
             "trainer_name",
