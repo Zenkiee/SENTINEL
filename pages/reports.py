@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 
+from services.date_format import format_date_for_display
 from ui_components import RoundedFrame
 
 
@@ -31,43 +32,42 @@ class ReportsPagesMixin:
             (
                 "Renewal Watch",
                 "Expired members that need follow-up.",
-                ["ID", "Name", "Contact", "Expiry", "Trainer"],
-                self.trim_rows(self.db.fetch_expired_members_report(), [0, 1, 2, 4, 5]),
+                ["Name", "Contact", "Expiry", "Trainer"],
+                self.trim_rows(self.db.fetch_expired_members_report(), [1, 2, 4, 5]),
                 self.colors["red"],
                 self.report_expired_members,
             ),
             (
                 "Revenue Ledger",
                 "Recent payments with member names.",
-                ["ID", "Member", "Date", "Payment", "Total"],
-                self.trim_rows(self.db.fetch_recent_transactions_report(), [0, 2, 3, 4, 5]),
+                ["Member", "Date", "Payment", "Total"],
+                self.trim_rows(self.db.fetch_recent_transactions_report(), [2, 3, 4, 5]),
                 self.colors["green"],
                 self.report_transactions,
             ),
             (
                 "Class Movement",
                 "Latest class enrollments.",
-                ["ID", "Member", "Class", "Schedule", "Date"],
-                self.db.fetch_class_enrollment_report(),
+                ["Member", "Class", "Schedule", "Date"],
+                self.trim_rows(self.db.fetch_class_enrollment_report(), [1, 2, 3, 4]),
                 self.colors["accent"],
                 self.report_class_enrollment,
             ),
             (
                 "Maintenance Queue",
                 "Equipment needing action.",
-                ["ID", "Equipment", "Status", "Latest Action", "Date"],
-                self.trim_rows(self.db.fetch_equipment_maintenance_report(), [0, 1, 3, 4, 5]),
+                ["Equipment", "Status", "Latest Action", "Date"],
+                self.trim_rows(self.db.fetch_equipment_maintenance_report(), [1, 3, 4, 5]),
                 self.colors["orange"],
                 self.report_equipment_maintenance,
             ),
             (
                 "Trainer Payroll",
                 "Salary and experience reference.",
-                ["ID", "Trainer", "Specialization", "Salary", "Years"],
+                ["Trainer", "Specialization", "Salary", "Years"],
                 self.db.fetch_records(
                     "trainers",
                     [
-                        "trainer_id",
                         "trainer_name",
                         "specialization",
                         "salary",
@@ -357,12 +357,12 @@ class ReportsPagesMixin:
         tree.tag_configure("even_row", background=self.colors["tree_stripe"], foreground=self.colors["text"])
 
         for column in headings:
-            tree.heading(column, text=column)
+            tree.heading(column, text=column, anchor="w")
             tree.column(column, width=105, anchor="w")
 
         for index, row in enumerate(rows):
             tag = "even_row" if index % 2 == 0 else "odd_row"
-            tree.insert("", tk.END, values=row, tags=(tag,))
+            tree.insert("", tk.END, values=self.format_report_row(headings, row), tags=(tag,))
 
         tree.pack(side="left", fill="x", expand=True)
 
@@ -373,6 +373,15 @@ class ReportsPagesMixin:
 
     def trim_rows(self, rows, indexes):
         return [tuple(row[index] for index in indexes) for row in rows]
+
+
+    def format_report_row(self, headings, row):
+        return tuple(
+            format_date_for_display(value)
+            if heading in ("Date", "Expiry")
+            else value
+            for heading, value in zip(headings, row)
+        )
 
 
     def report_expired_members(self):

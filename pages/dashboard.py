@@ -1,5 +1,6 @@
 import tkinter as tk
 
+from services.date_format import format_date_for_display
 from ui_components import RoundedFrame
 
 
@@ -41,11 +42,18 @@ class DashboardPagesMixin:
                 "total_amount",
             ],
         )[:6]
+        rows = [
+            (
+                amount,
+                format_date_for_display(transaction_date),
+                payment_type,
+                total_amount,
+            )
+            for _, _, amount, transaction_date, payment_type, total_amount in rows
+        ]
 
         self.table_card(
             [
-                "Transaction ID",
-                "Member ID",
                 "Amount",
                 "Date",
                 "Payment Type",
@@ -54,6 +62,7 @@ class DashboardPagesMixin:
             rows,
             height=6,
             bind_select=False,
+            data_columns=["amount", "transaction_date", "payment_type", "total_amount"],
         )
 
         self.section_header("Quick Actions")
@@ -199,13 +208,12 @@ class DashboardPagesMixin:
             return
 
         details = [
-            ("Trainer ID", profile[0]),
             ("Name", profile[1]),
             ("Email", profile[2]),
             ("Contact", profile[3]),
             ("Specialization", profile[4] or "Not set"),
             ("Salary", profile[5] if profile[5] not in (None, "") else "Not set"),
-            ("Hire Date", profile[6] or "Not set"),
+            ("Hire Date", format_date_for_display(profile[6]) if profile[6] else "Not set"),
             ("Experience", f"{profile[7]} years" if profile[7] not in (None, "") else "Not set"),
         ]
 

@@ -456,6 +456,42 @@ class Database:
         conn.close()
         return [f"{row[0]} - {row[1]}" for row in rows]
 
+    def fetch_lookup_labels(self, table, label_column):
+        conn = self.connect()
+        cursor = conn.cursor()
+
+        cursor.execute(f"SELECT {label_column} FROM {table} ORDER BY {label_column}")
+        rows = cursor.fetchall()
+
+        conn.close()
+        return [row[0] for row in rows]
+
+    def fetch_lookup_label(self, table, id_column, label_column, record_id):
+        conn = self.connect()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            f"SELECT {label_column} FROM {table} WHERE {id_column} = ?",
+            (record_id,)
+        )
+        row = cursor.fetchone()
+
+        conn.close()
+        return row[0] if row else ""
+
+    def fetch_lookup_id(self, table, id_column, label_column, label):
+        conn = self.connect()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            f"SELECT {id_column} FROM {table} WHERE {label_column} = ? ORDER BY {id_column} LIMIT 1",
+            (label,)
+        )
+        row = cursor.fetchone()
+
+        conn.close()
+        return row[0] if row else None
+
     def fetch_trainer_names(self):
         conn = self.connect()
         cursor = conn.cursor()

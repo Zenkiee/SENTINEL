@@ -1,5 +1,6 @@
 import re
-from datetime import datetime
+
+from services.date_format import parse_date_for_storage, parse_datetime_for_storage
 
 
 CONTACT_PREFIX = "+63"
@@ -88,15 +89,17 @@ def parse_field_value(label_text, data_type, raw_value):
 
     if data_type == "date":
         try:
-            datetime.strptime(raw_value, "%Y-%m-%d")
+            return parse_date_for_storage(raw_value)
         except ValueError:
-            raise ValueError(f"{label_text} must use YYYY-MM-DD format.")
-        return raw_value
+            raise ValueError(f"{label_text} must use MM-DD-YYYY format.")
 
     if data_type == "time":
         value = raw_value.upper()
         if not TIME_PATTERN.match(value):
-            raise ValueError(f"{label_text} must use HH:MM AM/PM format.")
+            try:
+                return parse_datetime_for_storage(value)
+            except ValueError:
+                raise ValueError(f"{label_text} must use HH:MM AM/PM or MM-DD-YYYY HH:MM AM/PM format.")
         return value
 
     return raw_value

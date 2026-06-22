@@ -27,6 +27,16 @@ STATIC_OPTIONS = {
     ("Transactions", "payment_type"): ["Cash", "GCash", "Card", "Bank Transfer"],
 }
 
+LOOKUP_SOURCES = {
+    ("Class Enrollment", "member_id"): ("members", "member_id", "member_name"),
+    ("Attendance", "member_id"): ("members", "member_id", "member_name"),
+    ("Transactions", "member_id"): ("members", "member_id", "member_name"),
+    ("Class Enrollment", "session_id"): ("class_sessions", "session_id", "class_name"),
+    ("Attendance", "session_id"): ("class_sessions", "session_id", "class_name"),
+    ("Equipment Logs", "equipment_id"): ("equipment", "equipment_id", "equipment_name"),
+    ("Members", "assigned_trainer_id"): ("trainers", "trainer_id", "trainer_name"),
+}
+
 
 def get_dropdown_options(db, page_name, column_name):
     static_options = STATIC_OPTIONS.get((page_name, column_name))
@@ -36,21 +46,36 @@ def get_dropdown_options(db, page_name, column_name):
     if page_name == "Class Sessions" and column_name == "assigned_trainer":
         return db.fetch_trainer_names()
 
-    if page_name in ("Class Enrollment", "Attendance", "Transactions") and column_name == "member_id":
-        return db.fetch_lookup_options("members", "member_id", "member_name")
-
-    if page_name in ("Class Enrollment", "Attendance") and column_name == "session_id":
-        return db.fetch_lookup_options("class_sessions", "session_id", "class_name")
-
-    if page_name == "Equipment Logs" and column_name == "equipment_id":
-        return db.fetch_lookup_options("equipment", "equipment_id", "equipment_name")
+    lookup_source = LOOKUP_SOURCES.get((page_name, column_name))
+    if lookup_source is not None:
+        table, _, label_column = lookup_source
+        return db.fetch_lookup_labels(table, label_column)
 
     return []
 
 
-def lookup_display_value(options, raw_value):
-    raw_text = str(raw_value)
-    for option in options:
-        if option.split(" - ", 1)[0] == raw_text:
-            return option
-    return raw_text
+def lookup_display_value(db, page_name, column_name, raw_value):
+    lookup_source = LOOKUP_SOURCES.get((page_name, column_name))
+    if lookup_source is None:
+        return str(raw_value)
+
+    table, id_column, label_column = lookup_source
+    return db.fetch_lookup_label(table, id_column, label_column, raw_value)
+
+
+def resolve_lookup_value(db, page_name, column_name, raw_value):
+    lookup_source = LOOKUP_SOURCES.get((page_name, column_name))
+    if lookup_source is None:
+        return raw_value
+
+    raw_text = str(raw_value).strip()
+    table, id_column, label_column = lookup_source
+
+    if raw_text.isdigit():
+        return int(raw_text)
+
+    record_id = db.fetch_lookup_id(table, id_column, label_column, raw_text)
+    if record_id is None:
+        raise ValueError("Please select an available record.")
+
+    return record_id

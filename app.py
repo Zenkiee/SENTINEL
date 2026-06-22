@@ -30,6 +30,7 @@ class SentinelApp(AuthPagesMixin, DashboardPagesMixin, RecordsPagesMixin, Report
         self.current_config = None
         self.form_entries = {}
         self.current_tree = None
+        self.table_row_ids = {}
         self.selected_id = None
         self.search_entry = None
         
@@ -100,6 +101,7 @@ class SentinelApp(AuthPagesMixin, DashboardPagesMixin, RecordsPagesMixin, Report
         self.selected_id = None
         self.form_entries = {}
         self.current_tree = None
+        self.table_row_ids = {}
 
     # ─── Button Helpers ────────────────────────────────────────────────────────
 
