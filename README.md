@@ -39,7 +39,6 @@ Trainer account registration automatically creates one linked trainer profile, s
 - Add, view, update, and delete records
 - Validation controls for required fields, dates, `+63` contact numbers, numbers, and dropdown selections
 - Automatic SQLite database creation
-- Sample data seeding on first run
 
 ---
 
@@ -49,8 +48,6 @@ Trainer account registration automatically creates one linked trainer profile, s
 - **Tkinter** - GUI framework
 - **SQLite3** - local database
 - **ttk** - themed Tkinter widgets
-
-No external Python packages are required.
 
 ---
 
@@ -143,7 +140,7 @@ The remaining trainer fields, such as specialization, salary, hire date, and yea
 
 ---
 
-## Main Files Explained
+## Main Files
 
 ### `main.py`
 
@@ -237,17 +234,8 @@ Trainer can access:
 
 - Add PDF or CSV report generation
 - Add backup and restore database feature
-- Add dark mode
-- Add stronger password hashing with salt for production use
+- Add dark mode (checked)
 - Add more report export and print layouts
-
----
-
-## Developer Notes
-
-The project uses a reusable page configuration system inside `services/page_config.py`. Each module defines its database table, primary key, display columns, headings, search columns, and input fields. This allows one CRUD interface to work across multiple modules.
-
-This makes the code easier to maintain because new record pages can be added by creating a new page configuration instead of rewriting the entire CRUD logic. Validation, dropdown choices, and membership calculations are also separated into service modules so `app.py` can focus on the interface.
 
 ---
 
