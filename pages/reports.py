@@ -94,8 +94,7 @@ class ReportsPagesMixin:
 
 
     def get_report_totals(self):
-        total_revenue = self.db.sum_column("transactions", "total_amount")
-        trainer_payroll = self.db.sum_column("trainers", "salary")
+        financials = self.db.get_financial_totals()
         active_members = self.db.count_where("members", "membership_status", "Active")
         expired_members = self.db.count_where("members", "membership_status", "Expired")
         maintenance = self.db.count_where("equipment", "status", "Under Maintenance")
@@ -105,12 +104,15 @@ class ReportsPagesMixin:
             "active": active_members,
             "expired": expired_members,
             "expiring": self.db.count_expiring_members(30),
-            "revenue": total_revenue,
+            "revenue": financials["revenue"],
+            "expenses": financials["expenses"],
+            "profit": financials["profit"],
+            "equipment_costs": financials["equipment_costs"],
             "transactions": self.db.count_all("transactions"),
             "enrollments": self.db.count_all("class_enrollment"),
             "attendance": self.db.count_all("attendance"),
             "maintenance": maintenance,
-            "payroll": trainer_payroll,
+            "payroll": financials["payroll"],
         }
 
 
@@ -149,11 +151,13 @@ class ReportsPagesMixin:
         focus_row = tk.Frame(snapshot.inner, bg=self.colors["card"])
         focus_row.pack(fill="x")
 
+        profit_color = self.colors["green"] if totals["profit"] >= 0 else self.colors["red"]
+
         self.report_focus_value(
             focus_row,
-            "Revenue",
-            f"PHP {totals['revenue']:,.0f}",
-            self.colors["green"],
+            "Net Profit",
+            f"PHP {totals['profit']:,.0f}",
+            profit_color,
         ).pack(side="left", fill="x", expand=True, padx=(0, 8))
 
         self.report_focus_value(
@@ -254,9 +258,9 @@ class ReportsPagesMixin:
         metrics = [
             ("Members", totals["members"], self.colors["accent"]),
             ("Transactions", totals["transactions"], self.colors["green"]),
-            ("Enrollments", totals["enrollments"], self.colors["accent"]),
-            ("Maintenance", totals["maintenance"], self.colors["orange"]),
+            ("Revenue", f"PHP {totals['revenue']:,.0f}", self.colors["green"]),
             ("Payroll", f"PHP {totals['payroll']:,.0f}", self.colors["red"]),
+            ("Equipment", f"PHP {totals['equipment_costs']:,.0f}", self.colors["red"]),
         ]
 
         for index, (label, value, color) in enumerate(metrics):

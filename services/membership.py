@@ -3,6 +3,14 @@ from datetime import date, datetime
 
 from services.date_format import parse_date_value
 
+MEMBERSHIP_MONTHLY_FEES = {
+    "Monthly": 1500,
+    "Student": 1000,
+    "Annual": 1200,
+}
+
+DEFAULT_MEMBERSHIP_MONTHLY_FEE = 1500
+
 
 def add_months(start_date, months):
     month_index = start_date.month - 1 + months
@@ -11,6 +19,34 @@ def add_months(start_date, months):
     last_day = calendar.monthrange(year, month)[1]
     day = min(start_date.day, last_day)
     return date(year, month, day)
+
+
+def get_membership_month_count(duration_text):
+    try:
+        month_count = int(str(duration_text).split()[0])
+        return max(1, month_count)
+    except (ValueError, IndexError, TypeError):
+        return 1
+
+
+def get_membership_monthly_fee(membership_type):
+    return MEMBERSHIP_MONTHLY_FEES.get(
+        str(membership_type or "").strip(),
+        DEFAULT_MEMBERSHIP_MONTHLY_FEE
+    )
+
+
+def calculate_membership_payment(membership_type, months):
+    monthly_fee = get_membership_monthly_fee(membership_type)
+    month_count = max(1, int(months or 1))
+    return monthly_fee, monthly_fee * month_count
+
+
+def calculate_membership_payment_from_duration(membership_type, duration_text):
+    return calculate_membership_payment(
+        membership_type,
+        get_membership_month_count(duration_text)
+    )
 
 
 def normalize_member_row(row):
@@ -35,10 +71,7 @@ def prepare_member_values(columns, values, is_new=True):
 
     if is_new:
         raw_duration = values[duration_index] or "1 Month"
-        try:
-            month_count = int(raw_duration.split()[0])
-        except (ValueError, IndexError):
-            month_count = 1
+        month_count = get_membership_month_count(raw_duration)
 
         registration_date = date.today()
         if values[registered_index]:

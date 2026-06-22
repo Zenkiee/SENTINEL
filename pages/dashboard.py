@@ -14,15 +14,17 @@ class DashboardPagesMixin:
             "Manage memberships, trainers, class sessions, equipment, attendance, and transactions from one clean workspace."
         )
 
-        total_revenue = self.db.sum_column("transactions", "total_amount")
+        financials = self.db.get_financial_totals()
+        total_revenue = financials["revenue"]
+        profit_color = self.colors["green"] if financials["profit"] >= 0 else self.colors["red"]
 
         stats = [
             ("Total Members", str(self.db.count_all("members")), self.colors["accent"]),
             ("Active Members", str(self.db.count_where("members", "membership_status", "Active")), self.colors["green"]),
             ("Expired Members", str(self.db.count_where("members", "membership_status", "Expired")), self.colors["red"]),
-            ("Total Revenue", f"₱{total_revenue:,.0f}", self.colors["orange"]),
+            ("Net Profit", f"PHP {financials['profit']:,.0f}", profit_color),
+            ("Total Revenue", f"PHP {total_revenue:,.0f}", self.colors["orange"]),
             ("Trainers", str(self.db.count_all("trainers")), self.colors["accent"]),
-            ("Classes", str(self.db.count_all("class_sessions")), self.colors["green"]),
             ("Equipment", str(self.db.count_all("equipment")), self.colors["accent"]),
             ("Maintenance", str(self.db.count_where("equipment", "status", "Under Maintenance")), self.colors["red"]),
         ]
@@ -243,7 +245,7 @@ class DashboardPagesMixin:
                 card.inner,
                 text=str(value),
                 bg=self.colors["card"],
-                fg=self.colors["text"],
+                fg=color,
                 font=(self.font, 13, "bold"),
                 wraplength=180,
                 justify="left"
@@ -308,13 +310,16 @@ class DashboardPagesMixin:
                 sticky="nsew"
             )
 
-            tk.Label(
+            dot = tk.Canvas(
                 card.inner,
-                text="●",
+                width=14,
+                height=14,
                 bg=self.colors["card"],
-                fg=color,
-                font=(self.font, 14)
-            ).pack(anchor="w")
+                bd=0,
+                highlightthickness=0
+            )
+            dot.create_oval(3, 3, 11, 11, fill=color, outline=color)
+            dot.pack(anchor="w")
 
             tk.Label(
                 card.inner,

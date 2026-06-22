@@ -964,11 +964,17 @@ class RecordsPagesMixin:
             columns, values = self.collect_window_values()
             saved_record_id = self.record_window_id
             if is_new:
-                saved_record_id = self.db.insert_record(
-                    self.record_window_config["table"],
-                    columns,
-                    values
-                )
+                if self.record_window_page == "Members":
+                    saved_record_id = self.db.insert_member_with_membership_payment(
+                        columns,
+                        values
+                    )
+                else:
+                    saved_record_id = self.db.insert_record(
+                        self.record_window_config["table"],
+                        columns,
+                        values
+                    )
             else:
                 self.db.update_record(
                     self.record_window_config["table"],
@@ -1080,7 +1086,7 @@ class RecordsPagesMixin:
                 return
 
             try:
-                new_expiry, days_remaining = self.db.extend_member_membership(member_id, months)
+                new_expiry, days_remaining, payment_total = self.db.extend_member_membership(member_id, months)
                 dialog.destroy()
                 parent_window.destroy()
                 self.load_table(self.search_entry.get().strip() if self.search_entry else "")
@@ -1088,7 +1094,8 @@ class RecordsPagesMixin:
                     "Membership Extended",
                     f"Membership extended by {months} month(s).\n"
                     f"New expiry: {format_date_for_display(new_expiry)}\n"
-                    f"Days remaining: {days_remaining}"
+                    f"Days remaining: {days_remaining}\n"
+                    f"Transaction recorded: PHP {payment_total:,.0f}"
                 )
             except Exception as e:
                 messagebox.showerror("Extension Failed", str(e), parent=dialog)
