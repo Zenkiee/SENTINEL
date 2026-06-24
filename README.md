@@ -13,15 +13,17 @@ SENTINEL is designed to help a gym manage important records such as members, tra
 The application has two user roles:
 
 - **Admin** - has access to all modules, including trainers, transactions, and reports.
-- **Trainer** - has limited access to members, class sessions, attendance, equipment, and equipment logs.
+- **Trainer** - has limited access to profile editing, members, class sessions, attendance, equipment, and equipment logs.
 
-> Note: The current login screen is for demonstration only. Any non-empty username and password can log in.
+Trainer account registration automatically creates one linked trainer profile, so account details are not duplicated in the trainer records.
 
 ---
 
 ## Features
 
 - Login screen with Admin and Trainer role selection
+- Account registration for Trainer users
+- Automatic trainer profile creation from registered name, email, and contact number
 - Dashboard with summary cards
 - Member management
 - Trainer management
@@ -35,8 +37,8 @@ The application has two user roles:
 - Search by ID or name
 - Sortable tables
 - Add, view, update, and delete records
+- Validation controls for required fields, dates, `+63` contact numbers, numbers, and dropdown selections
 - Automatic SQLite database creation
-- Sample data seeding on first run
 
 ---
 
@@ -47,8 +49,6 @@ The application has two user roles:
 - **SQLite3** - local database
 - **ttk** - themed Tkinter widgets
 
-No external Python packages are required.
-
 ---
 
 ## Folder Structure
@@ -56,10 +56,13 @@ No external Python packages are required.
 ```text
 SENTINEL-main/
 ├── main.py              # Starts the application
-├── app.py               # Main GUI layout, pages, navigation, and CRUD logic
+├── app.py               # Main GUI coordinator, navigation, shared buttons, and app shell
 ├── database.py          # SQLite database connection, tables, and data functions
 ├── ui_components.py     # Reusable UI components such as rounded frames
 ├── config.py            # App title, window size, fonts, and color palette
+├── pages/               # Login, dashboards, records, and reports page modules
+├── services/            # Page configs, dropdown options, validation, and membership logic
+├── docs/                # Presentation, navigation, and design documentation
 ├── README.md            # Project documentation
 ├── .gitignore           # Files ignored by Git
 └── .gitattributes       # Git line-ending configuration
@@ -113,29 +116,31 @@ py main.py
 
 ## Login Instructions
 
-The login is currently a demo login.
+The login uses stored user accounts. Choose the correct role before logging in.
 
-You can enter any username and password, as long as both fields are not empty.
-
-Example:
+Seeded Admin account:
 
 ```text
-Username: admin
-Password: admin123
+Username: SentinelSuperAdmin-1
+Password: Admin123
 Role: Admin
 ```
 
-or:
+Trainer users can create their own account from the login screen.
+
+When a Trainer account is created, SENTINEL also creates a linked trainer profile using:
 
 ```text
-Username: trainer
-Password: trainer123
-Role: Trainer
+Full Name
+Email
+Contact Number
 ```
+
+The remaining trainer fields, such as specialization, salary, hire date, and years of experience, can be completed later from the trainer profile record.
 
 ---
 
-## Main Files Explained
+## Main Files
 
 ### `main.py`
 
@@ -143,7 +148,7 @@ This is the entry point of the program. It creates the main Tkinter window and s
 
 ### `app.py`
 
-This is the largest file in the project. It contains the main application class, login screen, dashboards, sidebar navigation, tables, search functions, record windows, and report pages.
+This contains the main application class, sidebar navigation, topbar, shared buttons, and app shell. Page-specific screens are mixed in from the `pages/` folder.
 
 ### `database.py`
 
@@ -157,6 +162,24 @@ This file contains reusable interface components. The main component is `Rounded
 
 This file stores the app title, window size, minimum window size, font, and color palette.
 
+### `pages/`
+
+This folder separates the main screens by responsibility:
+
+- `auth.py` contains login, registration, and account sign-in logic.
+- `dashboard.py` contains Admin dashboard, Trainer dashboard, profile, and shared dashboard widgets.
+- `records.py` contains reusable table, search, sort, CRUD, and record-window logic.
+- `reports.py` contains the reports menu and report navigation actions.
+
+### `services/`
+
+This folder keeps reusable non-visual logic outside the main GUI file:
+
+- `page_config.py` defines module table names, columns, headings, search fields, and form fields.
+- `dropdown_options.py` defines fixed dropdown values and database lookup options.
+- `field_validation.py` validates and converts form values before saving.
+- `membership.py` calculates membership expiry, status, and days remaining.
+
 ---
 
 ## Database Tables
@@ -166,7 +189,7 @@ The system uses the following tables:
 | Table | Purpose |
 |---|---|
 | `members` | Stores gym member information |
-| `trainers` | Stores trainer information |
+| `trainers` | Stores trainer information and optional linked user account ID |
 | `class_sessions` | Stores class schedules and assigned trainers |
 | `class_enrollment` | Stores member enrollment in classes |
 | `attendance` | Stores attendance/check-in records |
@@ -198,6 +221,7 @@ Admin can access:
 Trainer can access:
 
 - Dashboard
+- My Profile
 - Members
 - Class Sessions
 - Attendance
@@ -208,23 +232,10 @@ Trainer can access:
 
 ## Possible Future Improvements
 
-- Add real username and password authentication
-- Add user accounts table
-- Show member names and class names instead of only IDs
-- Improve reports with export options
 - Add PDF or CSV report generation
-- Add better validation for dates and contact numbers
-- Improve membership date calculation using actual calendar months
 - Add backup and restore database feature
-- Add dark mode
-
----
-
-## Developer Notes
-
-The project uses a reusable page configuration system inside `app.py`. Each module defines its database table, primary key, display columns, headings, search columns, and input fields. This allows one CRUD interface to work across multiple modules.
-
-This makes the code easier to maintain because new record pages can be added by creating a new page configuration instead of rewriting the entire CRUD logic.
+- Add dark mode (checked)
+- Add more report export and print layouts
 
 ---
 
